@@ -3,7 +3,7 @@ import { Link, Navigate, Route, Routes, useNavigate, useParams } from 'react-rou
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Check, ChevronDown, Inbox, LogOut, Mail, Menu, MoreHorizontal, Paperclip, PenLine, RefreshCw, Search, Send, Settings, Sparkles, UserRound, X } from 'lucide-react'
 import type { Conversation } from './types'
-import { currentUser, fetchConversations, isDemoMode, sendMessage, signInWithGoogle, signOut } from './lib/api'
+import { currentUser, fetchConversations, getAuthState, isDemoMode, sendMessage, signInWithGoogle, signOut, subscribeToAuthState } from './lib/api'
 
 const avatarColors = ['#e8ddff', '#dceeff', '#ffe3d4', '#d8f3e5']
 function initials(name: string) { return name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase() }
@@ -15,12 +15,31 @@ function Avatar({ name, small = false }: { name: string; small?: boolean }) { re
 function Login() {
   const [loading, setLoading] = useState(false)
   async function handleLogin() { setLoading(true); await signInWithGoogle(); if (isDemoMode) window.location.href = '/chats' }
-  return <main className="login-page"><div className="login-card"><div className="brand-mark"><Mail size={24} /></div><p className="eyebrow">A calmer inbox</p><h1>Email that feels like messaging.</h1><p className="login-copy">Remail turns your tagged Gmail conversations into a simple, focused chat app.</p><button className="google-button" onClick={handleLogin} disabled={loading}><span className="google-g">G</span>{loading ? 'Connecting…' : 'Continue with Google'}<span /></button><p className="login-foot">Only conversations with <strong>[remail]</strong> in the subject appear.</p><div className="demo-note"><Sparkles size={15} /> Demo mode is active until Supabase is connected.</div></div></main>
+  return <main className="login-page"><div className="login-card"><div className="brand-mark"><Mail size={24} /></div><p className="eyebrow">A calmer inbox</p><h1>Email that feels like messaging.</h1><p className="login-copy">Remail turns your tagged Gmail conversations into a simple, focused chat app.</p><button className="google-button" onClick={handleLogin} disabled={loading}><span className="google-g">G</span>{loading ? 'Connecting…' : 'Continue with Google'}<span /></button><p className="login-foot">Only conversations with <strong>[remail]</strong> in the subject appear.</p>{isDemoMode && <div className="demo-note"><Sparkles size={15} /> Demo mode is active until Supabase is connected.</div>}</div></main>
 }
 
 function Shell({ children, onRefresh, isRefreshing }: { children: React.ReactNode; onRefresh?: () => void; isRefreshing?: boolean }) {
   const user = currentUser()
   return <div className="app-shell"><header className="topbar"><Link to="/chats" className="brand"><span className="brand-dot"><Mail size={16} /></span><span>remail</span></Link><div className="top-actions">{onRefresh && <button className="icon-button" onClick={onRefresh} aria-label="Refresh" title="Refresh"><RefreshCw size={18} className={isRefreshing ? 'spin' : ''} /></button>}<Link to="/settings" className="user-chip"><Avatar name={user.name} small /><span>{user.name.split(' ')[0]}</span></Link></div></header>{children}<nav className="mobile-nav"><Link to="/chats"><Inbox size={20} /><span>Inbox</span></Link><Link to="/settings"><Settings size={20} /><span>Settings</span></Link></nav></div>
+}
+
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const [status, setStatus] = useState<'loading' | 'ready' | 'login'>('loading')
+
+  useEffect(() => {
+    let active = true
+    const refresh = async () => {
+      const auth = await getAuthState()
+      if (active) setStatus(auth.signedIn && auth.gmailConnected ? 'ready' : 'login')
+    }
+    void refresh()
+    const unsubscribe = subscribeToAuthState(() => { window.setTimeout(() => void refresh(), 0) })
+    return () => { active = false; unsubscribe() }
+  }, [])
+
+  if (status === 'loading') return <main className="login-page"><div className="login-card"><p className="eyebrow">Checking connection</p><h1>Loading Remail…</h1></div></main>
+  if (status === 'login') return <Navigate to="/login" replace />
+  return <>{children}</>
 }
 
 function Chats() {
@@ -46,4 +65,4 @@ function Chat() {
 
 function SettingsPage() { const user = currentUser(); return <Shell><div className="settings-page"><div className="settings-head"><Link to="/chats" className="back-button"><ArrowLeft size={20} /></Link><div><p className="eyebrow">Preferences</p><h1>Settings</h1></div></div><section className="settings-card"><div className="profile"><Avatar name={user.name} /><div><strong>{user.name}</strong><span>{user.email}</span></div></div><div className="settings-divider" /><div className="setting-row"><div><strong>Gmail connection</strong><span>Your remail chats are synced from Gmail.</span></div><span className="connected-pill"><span className="status-dot" /> Connected</span></div><div className="settings-divider" /><button className="signout-button" onClick={() => signOut()}><LogOut size={17} /> Sign out</button></section><p className="settings-caption">Remail only shows messages with <strong>[remail]</strong> in the subject, between you and one other person.</p></div></Shell> }
 
-export function App() { useEffect(() => { document.documentElement.classList.add('loaded') }, []); return <Routes><Route path="/login" element={<Login />} /><Route path="/chats" element={<Chats />} /><Route path="/chats/:conversationId" element={<Chat />} /><Route path="/settings" element={<SettingsPage />} /><Route path="*" element={<Navigate to="/chats" replace />} /></Routes> }
+export function App() { useEffect(() => { document.documentElement.classList.add('loaded') }, []); const protectedRoute = (element: React.ReactNode) => <AuthGate>{element}</AuthGate>; return <Routes><Route path="/login" element={<Login />} /><Route path="/chats" element={protectedRoute(<Chats />)} /><Route path="/chats/:conversationId" element={protectedRoute(<Chat />)} /><Route path="/settings" element={protectedRoute(<SettingsPage />)} /><Route path="*" element={<Navigate to="/chats" replace />} /></Routes> }

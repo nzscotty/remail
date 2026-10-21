@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Conversation, User } from '../types'
 import { mockConversations, me } from './mockData'
+import { GmailConversationsResponseSchema, GmailMessageSchema, type GmailSendResponse } from './gmailSchemas'
+import { normalizeGmailMessages } from './gmailAdapter'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -17,10 +19,23 @@ if (supabase) {
   })
 }
 
-async function getGoogleAccessToken() {
+export async function getGoogleAccessToken() {
   if (!supabase) return undefined
   const { data } = await supabase.auth.getSession()
   return data.session?.provider_token ?? sessionStorage.getItem(providerTokenKey) ?? undefined
+}
+
+export async function getAuthState() {
+  if (!supabase) return { signedIn: true, gmailConnected: true }
+  const { data } = await supabase.auth.getSession()
+  const googleAccessToken = await getGoogleAccessToken()
+  return { signedIn: Boolean(data.session), gmailConnected: Boolean(googleAccessToken) }
+}
+
+export function subscribeToAuthState(callback: () => void) {
+  if (!supabase) return () => undefined
+  const { data } = supabase.auth.onAuthStateChange(() => callback())
+  return () => data.subscription.unsubscribe()
 }
 
 export async function signInWithGoogle() {
@@ -39,16 +54,17 @@ export async function fetchConversations(): Promise<Conversation[]> {
   if (!googleAccessToken) throw new Error('Google Gmail access is missing. Sign out and sign in with Google again to grant Gmail access.')
   const { data, error } = await supabase.functions.invoke('gmail-conversations', { body: { googleAccessToken } })
   if (error) throw error
-  return data.conversations
+  const payload = GmailConversationsResponseSchema.parse(data)
+  return normalizeGmailMessages(payload.messages ?? payload.conversations ?? [])
 }
 
-export async function sendMessage(conversationId: string, body: string, recipient: string, subject: string) {
-  if (!supabase) return { id: `demo-${Date.now()}` }
+export async function sendMessage(conversationId: string, body: string, recipient: string, subject: string): Promise<GmailSendResponse> {
+  if (!supabase) return { id: `demo-${Date.now()}`, threadId: conversationId }
   const googleAccessToken = await getGoogleAccessToken()
   if (!googleAccessToken) throw new Error('Google Gmail access is missing. Sign out and sign in with Google again to grant Gmail access.')
-  const { data, error } = await supabase.functions.invoke('gmail-send', { body: { conversationId, body, recipient, subject, googleAccessToken } })
+  const { data, error } = await supabase.functions.invoke('gmail-send', { body: { threadId: conversationId, body, recipient, subject, googleAccessToken } })
   if (error) throw error
-  return data
+  return GmailMessageSchema.parse(data)
 }
 
 export function currentUser(): User { return me }
