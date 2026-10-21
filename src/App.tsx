@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Check, ChevronDown, Inbox, LogOut, Mail, Menu, MoreHorizontal, Paperclip, PenLine, RefreshCw, Search, Send, Settings, Sparkles, UserRound, X } from 'lucide-react'
-import type { Conversation } from './types'
+import { ArrowLeft, Check, Inbox, LogOut, Mail, MoreHorizontal, Paperclip, PenLine, RefreshCw, Search, Send, Sparkles, X } from 'lucide-react'
+import type { Conversation, RemailMessage } from './types'
 import { currentUser, fetchConversations, getAuthState, isDemoMode, sendMessage, signInWithGoogle, signOut, subscribeToAuthState } from './lib/api'
+import { cleanEmailBody } from './lib/cleanEmail'
 
 const avatarColors = ['#e8ddff', '#dceeff', '#ffe3d4', '#d8f3e5']
 function initials(name: string) { return name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase() }
@@ -20,7 +21,7 @@ function Login() {
 
 function Shell({ children, onRefresh, isRefreshing }: { children: React.ReactNode; onRefresh?: () => void; isRefreshing?: boolean }) {
   const user = currentUser()
-  return <div className="app-shell"><header className="topbar"><Link to="/chats" className="brand"><span className="brand-dot"><Mail size={16} /></span><span>remail</span></Link><div className="top-actions">{onRefresh && <button className="icon-button" onClick={onRefresh} aria-label="Refresh" title="Refresh"><RefreshCw size={18} className={isRefreshing ? 'spin' : ''} /></button>}<Link to="/settings" className="user-chip"><Avatar name={user.name} small /><span>{user.name.split(' ')[0]}</span></Link></div></header>{children}<nav className="mobile-nav"><Link to="/chats"><Inbox size={20} /><span>Inbox</span></Link><Link to="/settings"><Settings size={20} /><span>Settings</span></Link></nav></div>
+  return <div className="app-shell"><header className="topbar"><Link to="/chats" className="brand"><span className="brand-dot"><Mail size={16} /></span><span>remail</span></Link><div className="gmail-status topbar-status"><span className="status-dot" /> Gmail connected</div><div className="top-actions">{onRefresh && <button className="icon-button" onClick={onRefresh} aria-label="Refresh" title="Refresh"><RefreshCw size={18} className={isRefreshing ? 'spin' : ''} /></button>}<Link to="/settings" className="user-chip"><Avatar name={user.name} small /><span>{user.name.split(' ')[0]}</span></Link></div></header>{children}</div>
 }
 
 function AuthGate({ children }: { children: React.ReactNode }) {
@@ -45,7 +46,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 function Chats() {
   const queryClient = useQueryClient(); const navigate = useNavigate()
   const query = useQuery({ queryKey: ['conversations'], queryFn: fetchConversations })
-  return <Shell onRefresh={() => queryClient.invalidateQueries({ queryKey: ['conversations'] })} isRefreshing={query.isFetching}><div className="content-grid"><aside className="sidebar"><div className="sidebar-heading"><div><p className="eyebrow">Your inbox</p><h2>Conversations</h2></div><button className="compose-button" onClick={() => navigate('/chats')}><PenLine size={17} /> <span>New</span></button></div><div className="search-box"><Search size={16} /><input placeholder="Search conversations" aria-label="Search conversations" /></div><div className="conversation-list">{query.isLoading ? <LoadingList /> : query.isError ? <ErrorState onRetry={() => query.refetch()} /> : query.data?.map(conversation => <ConversationRow key={conversation.id} conversation={conversation} />)}{query.data?.length === 0 && <EmptyState />}</div><div className="sidebar-footer"><div className="gmail-status"><span className="status-dot" /> Gmail connected</div><Link to="/settings" className="settings-link"><Settings size={16} /> Settings</Link></div></aside><section className="welcome-panel"><div className="welcome-art"><div className="sparkle sparkle-one">✦</div><div className="sparkle sparkle-two">✦</div><div className="welcome-envelope"><Mail size={48} strokeWidth={1.5} /></div></div><h1>Pick a conversation</h1><p>Your remail conversations live here. Choose one to start chatting.</p><div className="tip"><Sparkles size={15} /><span>Tip: add <strong>[remail]</strong> to any Gmail subject to bring it here.</span></div></section></div></Shell>
+  return <Shell onRefresh={() => queryClient.invalidateQueries({ queryKey: ['conversations'] })} isRefreshing={query.isFetching}><div className="content-grid"><aside className="sidebar"><div className="search-box"><Search size={16} /><input placeholder="Search conversations" aria-label="Search conversations" /></div><div className="conversation-list">{query.isLoading ? <LoadingList /> : query.isError ? <ErrorState onRetry={() => query.refetch()} /> : query.data?.map(conversation => <ConversationRow key={conversation.id} conversation={conversation} />)}{query.data?.length === 0 && <EmptyState />}<button className="compose-button compose-button-floating" onClick={() => navigate('/chats')} aria-label="Compose new message" title="New message"><PenLine size={17} /><span>New</span></button></div></aside><section className="welcome-panel"><div className="welcome-art"><div className="sparkle sparkle-one">✦</div><div className="sparkle sparkle-two">✦</div><div className="welcome-envelope"><Mail size={48} strokeWidth={1.5} /></div></div><h1>Pick a conversation</h1><p>Your remail conversations live here. Choose one to start chatting.</p><div className="tip"><Sparkles size={15} /><span>Tip: add <strong>[remail]</strong> to any Gmail subject to bring it here.</span></div></section></div></Shell>
 }
 
 function ConversationRow({ conversation }: { conversation: Conversation }) { return <Link to={`/chats/${conversation.id}`} className="conversation-row"><Avatar name={conversation.participant.name} /><div className="row-content"><div className="row-top"><strong>{conversation.participant.name}</strong><time>{formatTime(conversation.latestAt)}</time></div><div className="row-bottom"><span>{conversation.messages[conversation.messages.length - 1]?.cleanedBody}</span>{conversation.unreadCount > 0 && <b className="unread-count">{conversation.unreadCount}</b>}</div><small>{conversation.title}</small></div></Link> }
@@ -53,14 +54,85 @@ function LoadingList() { return <>{[1, 2, 3].map(i => <div className="skeleton-r
 function EmptyState() { return <div className="empty-state"><div className="empty-icon"><Inbox size={24} /></div><h3>No remail chats yet</h3><p>Messages with [remail] in the subject will show up here.</p></div> }
 function ErrorState({ onRetry }: { onRetry: () => void }) { return <div className="empty-state"><div className="empty-icon error"><X size={24} /></div><h3>Couldn’t load chats</h3><p>Check your connection and try again.</p><button className="text-button" onClick={onRetry}>Try again</button></div> }
 
+type PendingMessage = RemailMessage & { pending: boolean; gmailId?: string }
+
 function Chat() {
-  const { conversationId } = useParams(); const queryClient = useQueryClient(); const navigate = useNavigate(); const [draft, setDraft] = useState(''); const [expanded, setExpanded] = useState<string | null>(null)
+  const { conversationId } = useParams()
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const [draft, setDraft] = useState('')
+  const [expanded, setExpanded] = useState<string | null>(null)
+  const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([])
+  const messagesRef = useRef<HTMLElement | null>(null)
   const { data: conversations = [], isLoading } = useQuery({ queryKey: ['conversations'], queryFn: fetchConversations })
   const conversation = conversations.find(item => item.id === conversationId)
-  const mutation = useMutation({ mutationFn: () => sendMessage(conversationId!, draft.trim(), conversation!.participant.email, `[remail] ${conversation!.title}`), onSuccess: () => { setDraft(''); queryClient.invalidateQueries({ queryKey: ['conversations'] }) } })
+  const mutation = useMutation({
+    mutationFn: ({ body }: { body: string; pendingId: string }) => {
+      const latestMessage = conversation!.messages[conversation!.messages.length - 1]
+      if (latestMessage && !latestMessage.emailMessageId && !isDemoMode) {
+        throw new Error('Cannot reply because the latest Gmail message is missing its Message-ID header.')
+      }
+      const reply = latestMessage?.emailMessageId
+        ? { threadId: conversation!.id, messageId: latestMessage.emailMessageId, references: latestMessage.references }
+        : undefined
+      return sendMessage(body, conversation!.participant.email, `[remail] ${conversation!.title}`, reply)
+    },
+    onSuccess: (data, variables) => {
+      setPendingMessages(messages => messages.map(message => message.id === variables.pendingId
+        ? { ...message, pending: false, gmailId: data.id }
+        : message))
+      void queryClient.invalidateQueries({ queryKey: ['conversations'] })
+    },
+    onError: (_error, variables) => {
+      setPendingMessages(messages => messages.filter(message => message.id !== variables.pendingId))
+      setDraft(variables.body)
+    },
+  })
+  const conversationPending = pendingMessages.filter(message => message.conversationId === conversation?.id)
+  const messages = conversation
+    ? [
+        ...conversation.messages.map(message => {
+          const optimistic = conversationPending.find(pending => pending.gmailId === message.id)
+          return optimistic ? { ...message, id: optimistic.id, pending: false } : message
+        }),
+        ...conversationPending.filter(pending => !pending.gmailId || !conversation.messages.some(message => message.id === pending.gmailId)),
+      ]
+    : []
+
+  useEffect(() => {
+    if (!conversation) return
+    const loadedIds = new Set(conversation.messages.map(message => message.id))
+    setPendingMessages(current => current.filter(message =>
+      message.conversationId !== conversation.id || !message.gmailId || !loadedIds.has(message.gmailId),
+    ))
+  }, [conversation])
+
+  useEffect(() => {
+    const element = messagesRef.current
+    if (element) element.scrollTop = element.scrollHeight
+  }, [conversationId, messages.length])
+
   if (isLoading) return <Shell><div className="chat-loading">Loading conversation…</div></Shell>
   if (!conversation) return <Navigate to="/chats" replace />
-  return <Shell><div className="chat-layout"><div className="chat-header"><button className="back-button" onClick={() => navigate('/chats')}><ArrowLeft size={20} /></button><Avatar name={conversation.participant.name} /><div className="chat-heading"><h2>{conversation.participant.name}</h2><span>{conversation.participant.email}</span></div><button className="icon-button chat-more" aria-label="More options"><MoreHorizontal size={20} /></button></div><main className="messages"><div className="date-divider"><span>{formatDate(conversation.messages[0]?.sentAt)}</span></div>{conversation.messages.map(message => <div className={`message-wrap ${message.isMine ? 'mine' : ''}`} key={message.id}><div className="message-meta">{message.isMine ? 'You' : conversation.participant.name.split(' ')[0]} · {formatTime(message.sentAt)}</div><button className={`message-bubble ${expanded === message.id ? 'expanded' : ''}`} onClick={() => setExpanded(expanded === message.id ? null : message.id)}>{expanded === message.id ? message.body : message.cleanedBody}{expanded !== message.id && <span className="bubble-hint">Tap to show full email</span>}</button>{expanded === message.id && <div className="full-email-label"><Check size={13} /> Full email shown</div>}</div>)}</main><div className="composer"><div className="composer-inner"><button className="composer-icon" aria-label="Attach file" title="Attachments coming soon"><Paperclip size={19} /></button><textarea value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); if (draft.trim()) mutation.mutate() } }} placeholder="Write a message…" rows={1} /><button className="send-button" onClick={() => mutation.mutate()} disabled={!draft.trim() || mutation.isPending} aria-label="Send message"><Send size={17} /></button></div><span className="composer-note">Sent via Gmail · <strong>[remail]</strong> stays in the subject</span>{mutation.isError && <span className="send-error">Message failed to send. Try again.</span>}</div></div></Shell>
+  const send = (body: string) => {
+    const pendingId = `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    setDraft('')
+    setPendingMessages(messages => [...messages, {
+      id: pendingId,
+      conversationId: conversation.id,
+      sender: currentUser(),
+      recipient: conversation.participant,
+      subject: `[remail] ${conversation.title}`,
+      body,
+      cleanedBody: cleanEmailBody(body),
+      sentAt: new Date().toISOString(),
+      isRead: true,
+      isMine: true,
+      pending: true,
+    }])
+    mutation.mutate({ body, pendingId })
+  }
+  return <Shell><div className="chat-layout"><div className="chat-header"><button className="back-button" onClick={() => navigate('/chats')}><ArrowLeft size={20} /></button><Avatar name={conversation.participant.name} /><div className="chat-heading"><h2>{conversation.participant.name}</h2><span>{conversation.participant.email}</span></div><button className="icon-button chat-more" aria-label="More options"><MoreHorizontal size={20} /></button></div><main className="messages" ref={messagesRef}><div className="date-divider"><span>{formatDate(messages[0]?.sentAt)}</span></div>{messages.map(message => <div className={`message-wrap ${message.isMine ? 'mine' : ''} ${'pending' in message && message.pending ? 'pending' : ''}`} key={message.id}><div className="message-meta">{('pending' in message && message.pending) ? 'Sending…' : message.isMine ? 'You' : conversation.participant.name.split(' ')[0]} · {formatTime(message.sentAt)}</div><button className={`message-bubble ${expanded === message.id ? 'expanded' : ''}`} onClick={() => setExpanded(expanded === message.id ? null : message.id)}>{expanded === message.id ? message.body : message.cleanedBody}{expanded !== message.id && <span className="bubble-hint">Tap to show full email</span>}</button>{expanded === message.id && <div className="full-email-label"><Check size={13} /> Full email shown</div>}</div>)}</main><div className="composer"><div className="composer-inner"><button className="composer-icon" aria-label="Attach file" title="Attachments coming soon"><Paperclip size={19} /></button><textarea value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); const body = draft.trim(); if (body) send(body) } }} placeholder="Write a message…" rows={1} /><button className="send-button" onClick={() => { const body = draft.trim(); if (body) send(body) }} disabled={!draft.trim() || mutation.isPending} aria-label="Send message"><Send size={17} /></button></div><span className="composer-note">Sent via Gmail · <strong>[remail]</strong> stays in the subject</span>{mutation.isError && <span className="send-error">Message failed to send. Try again.</span>}</div></div></Shell>
 }
 
 function SettingsPage() { const user = currentUser(); return <Shell><div className="settings-page"><div className="settings-head"><Link to="/chats" className="back-button"><ArrowLeft size={20} /></Link><div><p className="eyebrow">Preferences</p><h1>Settings</h1></div></div><section className="settings-card"><div className="profile"><Avatar name={user.name} /><div><strong>{user.name}</strong><span>{user.email}</span></div></div><div className="settings-divider" /><div className="setting-row"><div><strong>Gmail connection</strong><span>Your remail chats are synced from Gmail.</span></div><span className="connected-pill"><span className="status-dot" /> Connected</span></div><div className="settings-divider" /><button className="signout-button" onClick={() => signOut()}><LogOut size={17} /> Sign out</button></section><p className="settings-caption">Remail only shows messages with <strong>[remail]</strong> in the subject, between you and one other person.</p></div></Shell> }

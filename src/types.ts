@@ -9,6 +9,8 @@ export type RemailMessage = {
   body: string
   cleanedBody: string
   sentAt: string
+  emailMessageId?: string
+  references?: string
   isRead: boolean
   isMine: boolean
 }

@@ -9,9 +9,18 @@ serve(async request => {
   if (request.method !== 'POST') return json({ ok: true, message: 'Remail Gmail send function is running. Call it with POST from the signed-in app.' })
   try {
     const payload = await request.json().catch(() => ({}))
-    const { googleAccessToken, recipient, subject, body, threadId } = payload
+    const { googleAccessToken, recipient, subject, body, threadId, inReplyTo, references } = payload
     if (!googleAccessToken || !recipient || !body) return json({ error: 'recipient, body, and Google access token are required.' }, 400)
-    const raw = [`To: ${recipient}`, `Subject: ${subject?.match(/\[remail\]/i) ? subject : `[remail] ${subject ?? 'New conversation'}`}`, 'Content-Type: text/plain; charset=utf-8', '', body].join('\r\n')
+    const safeHeader = (value: string) => value.replace(/[\r\n]+/g, ' ').trim()
+    const headers = [
+      `To: ${safeHeader(recipient)}`,
+      `Subject: ${safeHeader(subject?.match(/\[remail\]/i) ? subject : `[remail] ${subject ?? 'New conversation'}`)}`,
+      ...(threadId && inReplyTo ? [`In-Reply-To: ${safeHeader(inReplyTo)}`, `References: ${safeHeader([references, inReplyTo].filter(Boolean).join(' '))}`] : []),
+      'Content-Type: text/plain; charset=utf-8',
+      '',
+      body,
+    ]
+    const raw = headers.join('\r\n')
     const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', { method: 'POST', headers: { Authorization: `Bearer ${googleAccessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ raw: encode(raw), ...(threadId ? { threadId } : {}) }) })
     const data = await response.json()
     return json(data, response.status)

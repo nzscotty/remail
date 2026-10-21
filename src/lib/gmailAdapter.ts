@@ -17,7 +17,10 @@ function isLegacyMessage(message: SourceMessage): message is LegacyGmailMessage 
 
 function header(message: SourceMessage, name: string): string {
   if (isLegacyMessage(message)) {
-    const values: Record<string, string> = { Subject: message.subject, From: message.from, To: message.to, Cc: message.cc, Bcc: message.bcc }
+    const values: Record<string, string> = {
+      Subject: message.subject, From: message.from, To: message.to, Cc: message.cc, Bcc: message.bcc,
+      'Message-ID': message.messageId ?? '', References: message.references ?? '',
+    }
     return values[name] ?? ''
   }
   return message.payload?.headers?.find(item => (item.name ?? '').toLowerCase() === name.toLowerCase())?.value ?? ''
@@ -72,6 +75,8 @@ export function normalizeGmailMessages(messages: SourceMessage[]): Conversation[
         body: messageBody,
         cleanedBody: cleanEmailBody(messageBody),
         sentAt: sentAt(message),
+        emailMessageId: header(message, 'Message-ID'),
+        references: header(message, 'References'),
         isRead: !labels.includes('UNREAD'),
         isMine: labels.includes('SENT'),
       }

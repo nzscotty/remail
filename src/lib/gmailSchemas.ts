@@ -36,6 +36,7 @@ export const GmailMessageSchema = z.object({
 export const LegacyGmailMessageSchema = z.object({
   id: z.string(), threadId: z.string(), subject: z.string(), from: z.string(), to: z.string(),
   cc: z.string(), bcc: z.string(), body: z.string(), sentAt: z.string(), labelIds: z.array(z.string()),
+  messageId: z.string().optional(), references: z.string().optional(),
 }).passthrough()
 
 export const GmailConversationsResponseSchema = z.object({

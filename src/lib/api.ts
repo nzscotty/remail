@@ -58,11 +58,11 @@ export async function fetchConversations(): Promise<Conversation[]> {
   return normalizeGmailMessages(payload.messages ?? payload.conversations ?? [])
 }
 
-export async function sendMessage(conversationId: string, body: string, recipient: string, subject: string): Promise<GmailSendResponse> {
-  if (!supabase) return { id: `demo-${Date.now()}`, threadId: conversationId }
+export async function sendMessage(body: string, recipient: string, subject: string, reply?: { threadId: string; messageId: string; references?: string }): Promise<GmailSendResponse> {
+  if (!supabase) return { id: `demo-${Date.now()}`, threadId: reply?.threadId ?? '' }
   const googleAccessToken = await getGoogleAccessToken()
   if (!googleAccessToken) throw new Error('Google Gmail access is missing. Sign out and sign in with Google again to grant Gmail access.')
-  const { data, error } = await supabase.functions.invoke('gmail-send', { body: { threadId: conversationId, body, recipient, subject, googleAccessToken } })
+  const { data, error } = await supabase.functions.invoke('gmail-send', { body: { ...(reply ? { threadId: reply.threadId, inReplyTo: reply.messageId, references: reply.references } : {}), body, recipient, subject, googleAccessToken } })
   if (error) throw error
   return GmailMessageSchema.parse(data)
 }
