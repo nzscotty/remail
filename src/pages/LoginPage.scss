@@ -1,0 +1,123 @@
+@use "../responsive" as *;
+
+.login-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: radial-gradient(circle at 50% 0%, #efedff 0, #f7f8fc 38%);
+}
+
+.login-card {
+  width: min(410px, 100%);
+  padding: 46px 38px 35px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid white;
+  border-radius: 28px;
+  box-shadow: 0 20px 60px #4c48951a;
+}
+
+.login-card h1 {
+  font-family: "Space Grotesk";
+  font-size: 33px;
+  line-height: 1.1;
+  letter-spacing: -1.5px;
+  margin: 0 auto 14px;
+}
+
+.login-copy {
+  color: #898a9d;
+  font-size: 14px;
+  line-height: 1.65;
+  margin: 0 auto 28px;
+}
+
+.google-button {
+  width: 100%;
+  height: 49px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border: 1px solid #dedfe8;
+  color: var(--ink);
+  background: white;
+  border-radius: 13px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.google-button:hover {
+  border-color: #bdbaf5;
+  box-shadow: 0 6px 18px #665cf214;
+}
+
+.google-g {
+  font-family: Arial;
+  font-weight: bold;
+  font-size: 18px;
+  color: #4285f4;
+}
+
+.login-foot {
+  color: #a4a5b3;
+  font-size: 10px;
+  line-height: 1.5;
+  margin: 20px 12px 0;
+}
+
+.login-foot strong {
+  color: #7773da;
+}
+
+.demo-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #7773be;
+  background: #f0efff;
+  padding: 8px 11px;
+  border-radius: 8px;
+  font-size: 9px;
+  margin-top: 25px;
+}
+
+@include mobile {
+.login-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    padding: 16px;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+}
+
+@include mobile {
+.login-card {
+    width: 100%;
+    max-width: 410px;
+    padding: 32px 24px;
+  }
+}
+
+@include mobile {
+.login-card h1 {
+    font-size: clamp(26px, 8vw, 33px);
+  }
+}
+ .brand-mark {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 28px;
+  border-radius: 17px;
+}
+

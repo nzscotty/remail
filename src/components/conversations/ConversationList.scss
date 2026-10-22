@@ -1,0 +1,170 @@
+@use "../../responsive" as *;
+
+.conversation-row {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  gap: 13px;
+  padding: 14px 12px;
+  border-radius: 16px;
+  transition: background 0.18s;
+}
+
+.conversation-row:hover {
+  background: white;
+}
+
+.conversation-row.selected {
+  background: white;
+}
+
+.row-content {
+  min-width: 0;
+  flex: 1;
+}
+
+.row-top,
+.row-bottom {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.row-top strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.row-top time {
+  flex: 0 0 auto;
+  color: #a3a4b4;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.row-bottom {
+  margin-top: 5px;
+}
+
+.row-bottom span {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #77798d;
+  font-size: 12px;
+}
+
+.unread-count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  color: white;
+  background: var(--purple);
+  border-radius: 99px;
+  font-size: 10px;
+}
+
+.skeleton-row {
+  display: flex;
+  gap: 13px;
+  padding: 16px 12px;
+}
+
+.skeleton-row > span {
+  width: 44px;
+  height: 44px;
+  border-radius: 15px;
+  background: #ececf3;
+}
+
+.skeleton-row div {
+  flex: 1;
+  padding-top: 5px;
+}
+
+.skeleton-row i {
+  display: block;
+  width: 85%;
+  height: 9px;
+  margin-bottom: 9px;
+  border-radius: 5px;
+  background: #ececf3;
+}
+
+.skeleton-row i + i {
+  width: 56%;
+  height: 7px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 54px 24px;
+  color: var(--muted);
+}
+
+.empty-icon {
+  width: 49px;
+  height: 49px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 15px;
+  border-radius: 16px;
+  color: var(--purple);
+  background: var(--soft-purple);
+}
+
+.empty-icon.error {
+  color: #d47a86;
+  background: #fff0f2;
+}
+
+.empty-state h3 {
+  color: var(--ink);
+  font-family: "Space Grotesk";
+  font-size: 15px;
+  margin: 0 0 7px;
+}
+
+.empty-state p {
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+@include mobile {
+.conversation-row {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+@include mobile {
+.row-content,
+  .row-top,
+  .row-bottom {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+}
+
+.conversation-row > .avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  font-size: 24px;
+  font-weight: 400;
+}
+

@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import type { Conversation, User } from '../types'
+import type { Conversation, User } from '@/types'
 import { mockConversations, me } from './mockData'
 import { GmailConversationsResponseSchema, GmailMessageSchema, type GmailSendResponse } from './gmailSchemas'
 import { normalizeGmailMessages } from './gmailAdapter'
@@ -93,13 +93,19 @@ async function invokeGmailFunction<T>(name: string, payload: Record<string, unkn
   const accessToken = await getGoogleAccessToken()
   if (!accessToken) throw new Error('Google Gmail access is missing. Please sign in again.')
   const first = await supabase.functions.invoke<T>(name, { body: { ...payload, googleAccessToken: accessToken } })
-  if (!first.error) return first.data
+  if (!first.error) {
+    if (first.data === null) throw new Error(`Gmail function "${name}" returned no data.`)
+    return first.data
+  }
   if (!isUnauthorized(first.error)) throw first.error
 
   const refreshed = await refreshGoogleAccessToken(true)
   if (!refreshed) throw first.error
   const retry = await supabase.functions.invoke<T>(name, { body: { ...payload, googleAccessToken: refreshed } })
-  if (!retry.error) return retry.data
+  if (!retry.error) {
+    if (retry.data === null) throw new Error(`Gmail function "${name}" returned no data.`)
+    return retry.data
+  }
   if (isUnauthorized(retry.error)) await endSession()
   throw retry.error
 }

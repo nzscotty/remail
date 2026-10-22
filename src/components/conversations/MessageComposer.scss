@@ -1,0 +1,83 @@
+@use "../../responsive" as *;
+
+.composer {
+  flex: 0 0 auto;
+  padding: 8px 12px max(8px, env(safe-area-inset-bottom));
+}
+
+.composer-inner {
+  min-height: 53px;
+  padding: 6px 7px 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  border: 1px solid #e3e4ed;
+  border-radius: 17px;
+  box-shadow: 0 9px 25px #36365208;
+}
+
+.composer textarea {
+  max-height: 90px;
+  flex: 1;
+  resize: none;
+  outline: 0;
+  border: 0;
+  color: var(--ink);
+  line-height: 1.5;
+  font-size: 13px;
+  padding: 8px 0;
+}
+
+.composer textarea::placeholder {
+  color: #adaeba;
+}
+
+.send-button {
+  width: 37px;
+  height: 37px;
+  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  background: var(--purple);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.send-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.composer-note,
+.send-error {
+  display: block;
+  color: #aaaaba;
+  text-align: center;
+  font-size: 10px;
+  margin-top: 10px;
+}
+
+.send-error {
+  color: #d27783;
+}
+
+@include mobile {
+.composer {
+    flex: 0 0 auto;
+    padding: 8px 12px max(8px, env(safe-area-inset-bottom));
+  }
+}
+
+@include mobile {
+.composer-inner,
+  .composer textarea {
+    min-width: 0;
+  }
+}
+ .composer-icon {
+  padding: 7px;
+}
+

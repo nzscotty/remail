@@ -1,5 +1,5 @@
-import type { Conversation, RemailMessage, User } from '../types'
-import { cleanEmailBody } from './cleanEmail'
+import type { Conversation, RemailMessage, User } from '@/types'
+import { cleanEmailBody } from '@/utils/cleanEmail'
 
 export const me: User = { id: 'me', name: 'Alex Morgan', email: 'alex@example.com' }
 const people = {

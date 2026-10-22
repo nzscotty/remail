@@ -1,5 +1,5 @@
-import type { Conversation, RemailMessage, User } from '../types'
-import { cleanEmailBody, normalizeSubject } from './cleanEmail'
+import type { Conversation, RemailMessage, User } from '@/types'
+import { cleanEmailBody, normalizeSubject } from '@/utils/cleanEmail'
 import type { GmailMessage, GmailMessagePart, LegacyGmailMessage } from './gmailSchemas'
 
 type SourceMessage = GmailMessage | LegacyGmailMessage

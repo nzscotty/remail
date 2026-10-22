@@ -10,3 +10,5 @@ const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode><QueryClientProvider client={queryClient}><BrowserRouter><App /></BrowserRouter></QueryClientProvider></React.StrictMode>,
 )
+
+

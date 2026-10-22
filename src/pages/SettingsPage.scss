@@ -1,0 +1,96 @@
+@use "../responsive" as *;
+
+.settings-card {
+  padding: 23px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: white;
+}
+
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.profile div:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profile strong {
+  font-size: 14px;
+}
+
+.profile span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.settings-divider {
+  height: 1px;
+  background: #eeeef3;
+  margin: 22px 0;
+}
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+
+.setting-row div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.setting-row strong {
+  font-size: 13px;
+}
+
+.setting-row span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.connected-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #3c9d7c !important;
+  background: #eaf8f2;
+  border-radius: 99px;
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+
+.signout-button {
+  border: 0;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: #bf6d7a;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0;
+  cursor: pointer;
+}
+
+.settings-caption {
+  color: #a5a6b4;
+  font-size: 11px;
+  line-height: 1.7;
+  text-align: center;
+  margin: 18px 20px;
+}
+
+.profile .avatar {
+  border-radius: 50%;
+  width: 52px;
+  height: 52px;
+}
+
