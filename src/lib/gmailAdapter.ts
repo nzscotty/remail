@@ -53,13 +53,18 @@ function requiredMessageId(value: string | null | undefined, field: 'id' | 'thre
 export function normalizeGmailMessages(messages: SourceMessage[]): Conversation[] {
   const grouped = new Map<string, SourceMessage[]>()
   for (const message of messages) {
-    const threadId = requiredMessageId(message.threadId, 'threadId')
-    const group = grouped.get(threadId) ?? []
+    const from = parseAddress(header(message, 'From'))
+    const to = parseAddress(header(message, 'To'))
+    const contact = (message.labelIds ?? []).includes('SENT') ? to : from
+    const email = contact.email.trim().toLowerCase()
+    if (!email) continue
+    const group = grouped.get(email) ?? []
     group.push(message)
-    grouped.set(threadId, group)
+    grouped.set(email, group)
   }
 
-  return [...grouped.entries()].map(([threadId, threadMessages]) => {
+  return [...grouped.entries()].map(([email, threadMessages]) => {
+    const conversationId = email
     const sorted = [...threadMessages].sort((a, b) => sentAt(a).localeCompare(sentAt(b)))
     const remailMessages: RemailMessage[] = sorted.map(message => {
       const from = header(message, 'From')
@@ -68,7 +73,8 @@ export function normalizeGmailMessages(messages: SourceMessage[]): Conversation[
       const labels = message.labelIds ?? []
       return {
         id: requiredMessageId(message.id, 'id'),
-        conversationId: threadId,
+        conversationId,
+        gmailThreadId: requiredMessageId(message.threadId, 'threadId'),
         sender: parseAddress(from),
         recipient: parseAddress(to),
         subject: header(message, 'Subject'),
@@ -81,15 +87,18 @@ export function normalizeGmailMessages(messages: SourceMessage[]): Conversation[
         isMine: labels.includes('SENT'),
       }
     })
-    const participantMessage = sorted.find(message => !(message.labelIds ?? []).includes('SENT')) ?? sorted[0]
-    const participant = participantMessage
-      ? parseAddress(header(participantMessage, 'From'))
-      : { id: threadId, name: 'Unknown sender', email: '' }
+    const contactMessage = sorted.find(message => !(message.labelIds ?? []).includes('SENT'))
+      ?? sorted.find(message => (message.labelIds ?? []).includes('SENT'))
+    const participant = contactMessage
+      ? (contactMessage.labelIds ?? []).includes('SENT')
+        ? parseAddress(header(contactMessage, 'To'))
+        : parseAddress(header(contactMessage, 'From'))
+      : { id: email, name: email.split('@')[0], email }
     const latest = remailMessages[remailMessages.length - 1]
-    const subject = header(sorted[0], 'Subject')
+    const subject = latest?.subject ?? header(sorted[0], 'Subject')
 
     return {
-      id: threadId,
+      id: conversationId,
       title: normalizeSubject(subject),
       participant,
       messages: remailMessages,

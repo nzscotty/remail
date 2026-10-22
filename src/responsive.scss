@@ -1,0 +1,25 @@
+$mobile-breakpoint: 599px;
+$desktop-breakpoint: 600px;
+@mixin mobile {
+  @media screen and (max-width: $mobile-breakpoint) {
+    @content;
+  }
+}
+
+@mixin desktop {
+  @media screen and (min-width: $desktop-breakpoint) {
+    @content;
+  }
+}
+
+.mobile-hide {
+  @include mobile {
+    display: none !important;
+  }
+}
+
+.desktop-hide {
+  @include desktop {
+    display: none !important;
+  }
+}

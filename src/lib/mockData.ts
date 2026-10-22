@@ -1,5 +1,5 @@
 import type { Conversation, RemailMessage, User } from '../types'
-import { cleanEmailBody, normalizeSubject } from './cleanEmail'
+import { cleanEmailBody } from './cleanEmail'
 
 export const me: User = { id: 'me', name: 'Alex Morgan', email: 'alex@example.com' }
 const people = {
@@ -10,7 +10,8 @@ const people = {
 
 function message(id: string, sender: User, recipient: User, body: string, sentAt: string, isRead = true): RemailMessage {
   const subject = '[remail] ' + (id === 'm1' || id === 'm2' ? 'The weekend plans' : id === 'm3' ? 'Q3 launch notes' : 'Dinner next week')
-  return { id, conversationId: normalizeSubject(subject).toLowerCase().replaceAll(' ', '-'), sender, recipient, subject, body, cleanedBody: cleanEmailBody(body), sentAt, isRead, isMine: sender.id === me.id }
+  const participantEmail = (sender.id === me.id ? recipient.email : sender.email).toLowerCase()
+  return { id, conversationId: participantEmail, sender, recipient, subject, body, cleanedBody: cleanEmailBody(body), sentAt, isRead, isMine: sender.id === me.id }
 }
 
 const mayaMessages = [
@@ -25,7 +26,7 @@ const samMessages = [
 ]
 
 export const mockConversations: Conversation[] = [
-  { id: 'the-weekend-plans', title: 'The weekend plans', participant: people.maya, messages: mayaMessages, unreadCount: 0, latestAt: mayaMessages[1].sentAt },
-  { id: 'q3-launch-notes', title: 'Q3 launch notes', participant: people.theo, messages: theoMessages, unreadCount: 1, latestAt: theoMessages[0].sentAt },
-  { id: 'dinner-next-week', title: 'Dinner next week', participant: people.sam, messages: samMessages, unreadCount: 0, latestAt: samMessages[0].sentAt },
+  { id: 'maya@northstar.design', title: 'The weekend plans', participant: people.maya, messages: mayaMessages, unreadCount: 0, latestAt: mayaMessages[1].sentAt },
+  { id: 'theo@studiofield.co', title: 'Q3 launch notes', participant: people.theo, messages: theoMessages, unreadCount: 1, latestAt: theoMessages[0].sentAt },
+  { id: 'sam@bloomandco.com', title: 'Dinner next week', participant: people.sam, messages: samMessages, unreadCount: 0, latestAt: samMessages[0].sentAt },
 ]

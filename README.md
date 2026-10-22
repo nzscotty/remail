@@ -32,9 +32,18 @@ The Supabase error `At least one Client ID is required when Google sign-in is en
 8. In **Authentication → URL Configuration**, add `http://localhost:5173/chats` and your production `/chats` URL to the allowed redirect URLs.
 9. Deploy the functions in `supabase/functions/gmail-conversations` and `supabase/functions/gmail-send`.
 
+For automatic Gmail access-token renewal, also set the Google OAuth credentials as Supabase Function secrets and deploy `gmail-refresh`:
+
+```bash
+npx supabase secrets set GOOGLE_CLIENT_ID="<google-client-id>" GOOGLE_CLIENT_SECRET="<google-client-secret>" --project-ref dczjflhjxqxyvtukuxji
+npx supabase functions deploy gmail-refresh --project-ref <your-project-ref>
+```
+
+The refresh token stays in the browser's authenticated session storage; the Google client secret stays in Supabase Functions secrets.
+
 If Google shows an unverified-app warning, add the test Google accounts in the OAuth consent screen while the app is in testing. Gmail access scopes may require Google verification before public launch.
 
-The browser receives a short-lived Google provider access token from the OAuth session and passes it to the Edge Functions. Refresh credentials remain managed by the OAuth provider and are never stored by Remail.
+The browser keeps the Google provider access token and refresh token in the current tab's session storage. The `gmail-refresh` Edge Function uses the refresh token and server-side Google credentials to obtain a new access token; Remail does not store Google tokens in its database.
 
 ## Verify
 

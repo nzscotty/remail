@@ -3,6 +3,7 @@ export type User = { id: string; email: string; name: string; avatar?: string }
 export type RemailMessage = {
   id: string
   conversationId: string
+  gmailThreadId?: string
   sender: User
   recipient: User
   subject: string

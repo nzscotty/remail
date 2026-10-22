@@ -4,9 +4,10 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "start": "vite",
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "deploy:func": "npx supabase functions deploy gmail-conversations --project-ref dczjflhjxqxyvtukuxji && npx supabase functions deploy gmail-send --project-ref dczjflhjxqxyvtukuxji",
+    "deploy:func": "npx supabase functions deploy gmail-conversations --project-ref dczjflhjxqxyvtukuxji && npx supabase functions deploy gmail-send --project-ref dczjflhjxqxyvtukuxji && npx supabase functions deploy gmail-refresh --project-ref dczjflhjxqxyvtukuxji && npx supabase functions deploy gmail-mark-read --project-ref dczjflhjxqxyvtukuxji",
     "preview": "vite preview",
     "lint": "tsc --noEmit"
   },
@@ -25,6 +26,7 @@
     "@types/react": "^19.0.3",
     "@types/react-dom": "^19.0.2",
     "@vitejs/plugin-react": "^4.3.4",
+    "sass": "^1.106.1",
     "tailwindcss": "^4.0.0",
     "typescript": "~5.7.2",
     "vite": "^6.0.5",
