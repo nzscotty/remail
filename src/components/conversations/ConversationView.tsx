@@ -11,7 +11,7 @@ import { formatDate, formatTime, dayKey } from "@/utils/date";
 import { ConversationHeader } from "./ConversationHeader";
 import { MessageComposer } from "./MessageComposer";
 
-export type PendingMessage = RemailMessage & { pending: boolean; gmailId?: string };
+export type PendingMessage = RemailMessage & { pending: boolean; providerMessageId?: string };
 
 export function ConversationView() {
   const { conversationId } = useParams();
@@ -43,13 +43,18 @@ export function ConversationView() {
     mutationFn: ({ body }: { body: string; pendingId: string }) => {
       const latestMessage =
         conversation!.messages[conversation!.messages.length - 1];
-      if (latestMessage && !latestMessage.emailMessageId && !isDemoMode) {
+      const replyMessage = latestMessage?.provider === 'microsoft'
+        ? [...conversation!.messages].reverse().find(message => !message.isMine) ?? latestMessage
+        : latestMessage;
+      if (replyMessage && !replyMessage.emailMessageId && !replyMessage.providerMessageId && !isDemoMode) {
         throw new Error(
-          "Cannot reply because the latest Gmail message is missing its Message-ID header.",
+          "Cannot reply because the latest email is missing its reply identifier.",
         );
       }
-      const reply = latestMessage?.emailMessageId
-        ? {
+      const reply = replyMessage?.provider === 'microsoft' && replyMessage.providerMessageId
+        ? { providerMessageId: replyMessage.providerMessageId, providerConversationId: replyMessage.providerConversationId }
+        : latestMessage?.emailMessageId
+          ? {
             threadId: latestMessage.gmailThreadId ?? conversation!.id,
             messageId: latestMessage.emailMessageId,
             references: latestMessage.references,
@@ -63,8 +68,8 @@ export function ConversationView() {
       );
     },
     onSuccess: (data, variables) => {
-      const gmailId = data.id ?? undefined;
-      if (!gmailId) {
+      const providerMessageId = data.id ?? undefined;
+      if (!providerMessageId) {
         setPendingMessages((messages) =>
           messages.filter((message) => message.id !== variables.pendingId),
         );
@@ -74,7 +79,7 @@ export function ConversationView() {
       setPendingMessages((messages) =>
         messages.map((message) =>
           message.id === variables.pendingId
-            ? { ...message, pending: false, gmailId }
+            ? { ...message, pending: false, providerMessageId }
             : message,
         ),
       );
@@ -94,7 +99,7 @@ export function ConversationView() {
     ? [
         ...conversation.messages.map((message) => {
           const optimistic = conversationPending.find(
-            (pending) => pending.gmailId === message.id,
+            (pending) => pending.providerMessageId === message.id,
           );
           return optimistic
             ? { ...message, id: optimistic.id, pending: false }
@@ -102,9 +107,9 @@ export function ConversationView() {
         }),
         ...conversationPending.filter(
           (pending) =>
-            !pending.gmailId ||
+            !pending.providerMessageId ||
             !conversation.messages.some(
-              (message) => message.id === pending.gmailId,
+              (message) => message.id === pending.providerMessageId,
             ),
         ),
       ]
@@ -119,8 +124,8 @@ export function ConversationView() {
       current.filter(
         (message) =>
           message.conversationId !== conversation.id ||
-          !message.gmailId ||
-          !loadedIds.has(message.gmailId),
+          !message.providerMessageId ||
+          !loadedIds.has(message.providerMessageId),
       ),
     );
   }, [conversation]);

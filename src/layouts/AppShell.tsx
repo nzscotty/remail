@@ -24,8 +24,8 @@ export function AppShell({
           </span>
           <span>remail</span>
         </Link>
-        <div className="gmail-status topbar-status mobile-hide">
-          <span className="status-dot" /> Gmail connected
+        <div className="mail-status topbar-status mobile-hide">
+          <span className="status-dot" /> Email connected
         </div>
         <div className="top-actions">
           {onRefresh && (

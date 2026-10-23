@@ -38,7 +38,7 @@ export function MessageComposer({ draft, isSending, hasError, onDraftChange, onS
         </button>
       </div>
       <span className="composer-note">
-        Sent via Gmail · <strong>[remail]</strong> stays in the subject
+        Sent via your connected email · <strong>[remail]</strong> stays in the subject
       </span>
       {hasError && <span className="send-error">Message failed to send. Try again.</span>}
     </div>

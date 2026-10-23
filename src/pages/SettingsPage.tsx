@@ -36,8 +36,8 @@ export function SettingsPage() {
           <div className="settings-divider" />
           <div className="setting-row">
             <div>
-              <strong>Gmail connection</strong>
-              <span>Your remail chats are synced from Gmail.</span>
+              <strong>Email connection</strong>
+              <span>Your remail chats are synced from your connected provider.</span>
             </div>
             <span className="connected-pill">
               <span className="status-dot" /> Connected

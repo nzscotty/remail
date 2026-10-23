@@ -11,7 +11,7 @@ serve(async request => {
     const { providerRefreshToken } = await request.json().catch(() => ({}))
     const clientId = Deno.env.get('GOOGLE_CLIENT_ID')
     const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET')
-    if (!providerRefreshToken) return json({ error: 'Google refresh token is missing.' }, 401)
+    if (!providerRefreshToken) return json({ error: 'Provider refresh token is missing.' }, 401)
     if (!clientId || !clientSecret) return json({ error: 'Google OAuth refresh credentials are not configured.' }, 500)
 
     const form = new URLSearchParams({

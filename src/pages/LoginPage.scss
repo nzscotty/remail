@@ -35,7 +35,7 @@
   margin: 0 auto 28px;
 }
 
-.google-button {
+.provider-button {
   width: 100%;
   height: 49px;
   display: flex;
@@ -51,7 +51,7 @@
   cursor: pointer;
 }
 
-.google-button:hover {
+.provider-button:hover {
   border-color: #bdbaf5;
   box-shadow: 0 6px 18px #665cf214;
 }
@@ -61,6 +61,30 @@
   font-weight: bold;
   font-size: 18px;
   color: #4285f4;
+}
+
+.microsoft-mark {
+  width: 17px;
+  height: 17px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 2px;
+}
+
+.microsoft-mark i:nth-child(1) { background: #f25022; }
+.microsoft-mark i:nth-child(2) { background: #7fba00; }
+.microsoft-mark i:nth-child(3) { background: #00a4ef; }
+.microsoft-mark i:nth-child(4) { background: #ffb900; }
+
+.provider-button + .provider-button {
+  margin-top: 10px;
+}
+
+.login-error {
+  margin: 12px 0 0;
+  color: #b42318;
+  font-size: 12px;
 }
 
 .login-foot {

@@ -1,8 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Conversation, User } from '@/types'
 import { mockConversations, me } from './mockData'
-import { GmailConversationsResponseSchema, GmailMessageSchema, type GmailSendResponse } from './gmailSchemas'
-import { normalizeGmailMessages } from './gmailAdapter'
+import { mailAdapters } from './mail/adapters'
+import type { MailProvider, SendReply } from './mail/types'
+export type { MailProvider } from './mail/types'
+type AuthProvider = 'google' | 'azure'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -10,34 +12,51 @@ export const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, s
 
 export const isDemoMode = !supabase
 
-const providerTokenKey = 'remail.google.provider_token'
-const providerRefreshTokenKey = 'remail.google.provider_refresh_token'
-const providerTokenExpiryKey = 'remail.google.provider_token_expires_at'
+const tokenKey = (provider: MailProvider) => `remail.${provider}.provider_token`
+const refreshTokenKey = (provider: MailProvider) => `remail.${provider}.provider_refresh_token`
+const tokenExpiryKey = (provider: MailProvider) => `remail.${provider}.provider_token_expires_at`
 const refreshAheadMs = 5 * 60 * 1000
-let refreshPromise: Promise<string | null> | null = null
+const refreshPromises = new Map<MailProvider, Promise<string | null>>()
+
+function providerFromAuthProvider(provider: unknown): MailProvider | null {
+  if (provider === 'google') return 'google'
+  if (provider === 'azure' || provider === 'microsoft') return 'microsoft'
+  return null
+}
+
+async function getSessionProvider(): Promise<MailProvider | null> {
+  if (!supabase) return null
+  const { data } = await supabase.auth.getSession()
+  return providerFromAuthProvider(data.session?.user.app_metadata?.provider)
+    ?? providerFromAuthProvider(data.session?.user.identities?.[0]?.provider)
+}
 
 if (supabase) {
   supabase.auth.onAuthStateChange((_event, session) => {
-    if (session?.provider_token && (
-      session.provider_token !== sessionStorage.getItem(providerTokenKey)
-      || !sessionStorage.getItem(providerTokenExpiryKey)
+    const provider = providerFromAuthProvider(session?.user.app_metadata?.provider)
+      ?? providerFromAuthProvider(session?.user.identities?.[0]?.provider)
+    if (provider && session?.provider_token && (
+      session.provider_token !== sessionStorage.getItem(tokenKey(provider))
+      || !sessionStorage.getItem(tokenExpiryKey(provider))
     )) {
-      sessionStorage.setItem(providerTokenKey, session.provider_token)
-      sessionStorage.setItem(providerTokenExpiryKey, String(Date.now() + 55 * 60 * 1000))
+      sessionStorage.setItem(tokenKey(provider), session.provider_token)
+      sessionStorage.setItem(tokenExpiryKey(provider), String(Date.now() + 55 * 60 * 1000))
     }
-    if (session?.provider_refresh_token) sessionStorage.setItem(providerRefreshTokenKey, session.provider_refresh_token)
+    if (provider && session?.provider_refresh_token) sessionStorage.setItem(refreshTokenKey(provider), session.provider_refresh_token)
     if (_event === 'SIGNED_OUT') {
-      sessionStorage.removeItem(providerTokenKey)
-      sessionStorage.removeItem(providerRefreshTokenKey)
-      sessionStorage.removeItem(providerTokenExpiryKey)
+      for (const providerName of ['google', 'microsoft'] as const) {
+        sessionStorage.removeItem(tokenKey(providerName))
+        sessionStorage.removeItem(refreshTokenKey(providerName))
+        sessionStorage.removeItem(tokenExpiryKey(providerName))
+      }
     }
   })
 }
 
-async function currentProviderRefreshToken() {
+async function currentProviderRefreshToken(provider: MailProvider) {
   if (!supabase) return null
   const { data } = await supabase.auth.getSession()
-  return data.session?.provider_refresh_token ?? sessionStorage.getItem(providerRefreshTokenKey)
+  return sessionStorage.getItem(refreshTokenKey(provider)) ?? data.session?.provider_refresh_token ?? null
 }
 
 async function endSession() {
@@ -45,40 +64,46 @@ async function endSession() {
   window.location.replace('/login')
 }
 
-export async function refreshGoogleAccessToken(force = false): Promise<string | null> {
+export async function refreshMailAccessToken(force = false): Promise<string | null> {
   if (!supabase) return null
-  if (refreshPromise) return refreshPromise
+  const provider = await getSessionProvider()
+  if (!provider) return null
+  const activeRefresh = refreshPromises.get(provider)
+  if (activeRefresh) return activeRefresh
 
-  const accessToken = sessionStorage.getItem(providerTokenKey)
-  const expiresAt = Number(sessionStorage.getItem(providerTokenExpiryKey) ?? 0)
+  const accessToken = sessionStorage.getItem(tokenKey(provider))
+  const expiresAt = Number(sessionStorage.getItem(tokenExpiryKey(provider)) ?? 0)
   if (!force && accessToken && Date.now() < expiresAt - refreshAheadMs) return accessToken
 
-  refreshPromise = (async () => {
-    const providerRefreshToken = await currentProviderRefreshToken()
+  const refreshPromise = (async () => {
+    const providerRefreshToken = await currentProviderRefreshToken(provider)
     if (!providerRefreshToken) return null
-    const { data, error } = await supabase.functions.invoke('gmail-refresh', {
+    const refreshFunction = provider === 'google' ? 'gmail-refresh' : 'microsoft-refresh'
+    const { data, error } = await supabase.functions.invoke(refreshFunction, {
       body: { providerRefreshToken },
     })
     if (error || typeof data?.access_token !== 'string') return null
-    sessionStorage.setItem(providerTokenKey, data.access_token)
-    sessionStorage.setItem(providerTokenExpiryKey, String(Date.now() + Math.max(60, Number(data.expires_in) || 3600) * 1000))
-    if (typeof data.refresh_token === 'string') sessionStorage.setItem(providerRefreshTokenKey, data.refresh_token)
+    sessionStorage.setItem(tokenKey(provider), data.access_token)
+    sessionStorage.setItem(tokenExpiryKey(provider), String(Date.now() + Math.max(60, Number(data.expires_in) || 3600) * 1000))
+    if (typeof data.refresh_token === 'string') sessionStorage.setItem(refreshTokenKey(provider), data.refresh_token)
     return data.access_token as string
-  })().finally(() => { refreshPromise = null })
+  })().finally(() => { refreshPromises.delete(provider) })
 
+  refreshPromises.set(provider, refreshPromise)
   return await refreshPromise
 }
 
-export async function getGoogleAccessToken() {
+async function getMailAccessToken(provider: MailProvider) {
   if (!supabase) return undefined
   const { data } = await supabase.auth.getSession()
   const sessionToken = data.session?.provider_token
-  const storedToken = sessionStorage.getItem(providerTokenKey)
+  if (await getSessionProvider() !== provider) return undefined
+  const storedToken = sessionStorage.getItem(tokenKey(provider))
   if (sessionToken && !storedToken) {
-    sessionStorage.setItem(providerTokenKey, sessionToken)
-    sessionStorage.setItem(providerTokenExpiryKey, String(Date.now() + 55 * 60 * 1000))
+    sessionStorage.setItem(tokenKey(provider), sessionToken)
+    sessionStorage.setItem(tokenExpiryKey(provider), String(Date.now() + 55 * 60 * 1000))
   }
-  return await refreshGoogleAccessToken() ?? undefined
+  return await refreshMailAccessToken() ?? undefined
 }
 
 function isUnauthorized(error: { context?: unknown }): boolean {
@@ -86,33 +111,41 @@ function isUnauthorized(error: { context?: unknown }): boolean {
   return context instanceof Response && context.status === 401
 }
 
-async function invokeGmailFunction<T>(name: string, payload: Record<string, unknown>): Promise<T> {
-  if (!supabase) throw new Error('Gmail is unavailable in demo mode.')
-  const accessToken = await getGoogleAccessToken()
-  if (!accessToken) throw new Error('Google Gmail access is missing. Please sign in again.')
-  const first = await supabase.functions.invoke<T>(name, { body: { ...payload, googleAccessToken: accessToken } })
+async function invokeMailFunction<T>(provider: MailProvider, operation: 'conversations' | 'send' | 'mark-read', payload: Record<string, unknown>): Promise<T> {
+  if (!supabase) throw new Error('Mail providers are unavailable in demo mode.')
+  const functionProvider = provider === 'google' ? 'gmail' : 'microsoft'
+  const name = `${functionProvider}-${operation}`
+  const accessToken = await getMailAccessToken(provider)
+  if (!accessToken) throw new Error(`Your ${provider === 'google' ? 'Google' : 'Microsoft'} mail access is missing. Please sign in again.`)
+  const first = await supabase.functions.invoke<T>(name, { body: { ...payload, providerAccessToken: accessToken } })
   if (!first.error) {
-    if (first.data === null) throw new Error(`Gmail function "${name}" returned no data.`)
+    if (first.data === null) throw new Error(`Mail function "${name}" returned no data.`)
     return first.data
   }
   if (!isUnauthorized(first.error)) throw first.error
 
-  const refreshed = await refreshGoogleAccessToken(true)
+  const refreshed = await refreshMailAccessToken(true)
   if (!refreshed) throw first.error
-  const retry = await supabase.functions.invoke<T>(name, { body: { ...payload, googleAccessToken: refreshed } })
+  const retry = await supabase.functions.invoke<T>(name, { body: { ...payload, providerAccessToken: refreshed } })
   if (!retry.error) {
-    if (retry.data === null) throw new Error(`Gmail function "${name}" returned no data.`)
+    if (retry.data === null) throw new Error(`Mail function "${name}" returned no data.`)
     return retry.data
   }
   if (isUnauthorized(retry.error)) await endSession()
   throw retry.error
 }
 
+function invokeForProvider(provider: MailProvider) {
+  return <T>(operation: 'conversations' | 'send' | 'mark-read', payload: Record<string, unknown>) =>
+    invokeMailFunction<T>(provider, operation, payload)
+}
+
 export async function getAuthState() {
-  if (!supabase) return { signedIn: true, gmailConnected: true }
+  if (!supabase) return { signedIn: true, mailConnected: true, provider: 'google' as MailProvider }
   const { data } = await supabase.auth.getSession()
-  const googleAccessToken = await getGoogleAccessToken()
-  return { signedIn: Boolean(data.session), gmailConnected: Boolean(googleAccessToken) }
+  const provider = await getSessionProvider()
+  const accessToken = provider ? await getMailAccessToken(provider) : undefined
+  return { signedIn: Boolean(data.session), mailConnected: Boolean(accessToken), provider }
 }
 
 export async function getConversationCacheOwner(): Promise<string | null> {
@@ -128,36 +161,41 @@ export function subscribeToAuthState(callback: () => void) {
   return () => data.subscription.unsubscribe()
 }
 
-export async function signInWithGoogle() {
+export async function signInWithProvider(provider: MailProvider) {
   if (!supabase) return
-  await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: window.location.origin + '/chats', scopes: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.modify', queryParams: { access_type: 'offline', prompt: 'consent' } },
+  const authProvider: AuthProvider = provider === 'google' ? 'google' : 'azure'
+  const scopes = provider === 'google'
+    ? 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.modify'
+    : 'email offline_access User.Read Mail.ReadWrite Mail.Send'
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: authProvider,
+    options: { redirectTo: window.location.origin + '/chats', scopes, ...(provider === 'google' ? { queryParams: { access_type: 'offline', prompt: 'consent' } } : {}) },
   })
+  if (error) throw error
 }
 
 export async function signOut() { if (supabase) await supabase.auth.signOut() }
 
 export async function fetchConversations(): Promise<Conversation[]> {
   if (!supabase) return mockConversations
-  const data = await invokeGmailFunction<unknown>('gmail-conversations', {})
-  const payload = GmailConversationsResponseSchema.parse(data)
-  return normalizeGmailMessages(payload.messages ?? payload.conversations ?? [])
+  const provider = await getSessionProvider()
+  if (!provider) throw new Error('No supported mail provider is connected.')
+  const { data: sessionData } = await supabase.auth.getSession()
+  return mailAdapters[provider].fetchConversations(invokeForProvider(provider), sessionData.session?.user.email ?? '')
 }
 
-export async function sendMessage(body: string, recipient: string, subject: string, reply?: { threadId: string; messageId: string; references?: string }): Promise<GmailSendResponse> {
+export async function sendMessage(body: string, recipient: string, subject: string, reply?: SendReply) {
   if (!supabase) return { id: `demo-${Date.now()}`, threadId: reply?.threadId ?? '' }
-  const data = await invokeGmailFunction<unknown>('gmail-send', { ...(reply ? { threadId: reply.threadId, inReplyTo: reply.messageId, references: reply.references } : {}), body, recipient, subject })
-  return GmailMessageSchema.parse(data)
+  const provider = await getSessionProvider()
+  if (!provider) throw new Error('No supported mail provider is connected.')
+  return mailAdapters[provider].sendMessage(invokeForProvider(provider), { body, recipient, subject, reply })
 }
 
 export async function markConversationAsRead(conversation: Conversation): Promise<void> {
   if (!supabase) return
-  const threadIds = [...new Set(conversation.messages
-    .map(message => message.gmailThreadId)
-    .filter((threadId): threadId is string => Boolean(threadId)))]
-  if (threadIds.length === 0) return
-  await invokeGmailFunction('gmail-mark-read', { threadIds })
+  const provider = conversation.messages.find(message => message.provider)?.provider ?? await getSessionProvider()
+  if (!provider) return
+  await mailAdapters[provider].markConversationAsRead(invokeForProvider(provider), conversation)
 }
 
 let signedInUser: User | null = null

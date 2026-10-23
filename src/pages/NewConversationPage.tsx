@@ -95,7 +95,7 @@ export function NewConversationPage() {
               required
             />
           </label>
-          <p className="new-message-note">Sent via Gmail · <strong>[remail]</strong> is added to the subject.</p>
+          <p className="new-message-note">Sent via your connected email · <strong>[remail]</strong> is added to the subject.</p>
           {mutation.isError && <p className="send-error">Message failed to send. Check the address and try again.</p>}
           <div className="new-message-actions">
             <button className="text-button" type="button" onClick={() => navigate("/chats")}>Cancel</button>

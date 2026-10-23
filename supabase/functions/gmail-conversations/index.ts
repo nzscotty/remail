@@ -17,13 +17,13 @@ serve(async request => {
   if (request.method !== 'POST') return json({ ok: true, message: 'Remail Gmail conversations function is running. Call it with POST from the signed-in app.' })
   try {
     const payload = await request.json().catch(() => ({}))
-    const { googleAccessToken } = payload
-    if (!googleAccessToken) return json({ error: 'Google access token is missing.' }, 401)
-    const result = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?q=subject:%5Bremail%5D&maxResults=100', { headers: { Authorization: `Bearer ${googleAccessToken}` } })
+    const { providerAccessToken } = payload
+    if (!providerAccessToken) return json({ error: 'Mail provider access token is missing.' }, 401)
+    const result = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?q=subject:%5Bremail%5D&maxResults=100', { headers: { Authorization: `Bearer ${providerAccessToken}` } })
     if (!result.ok) return json({ error: 'Gmail search failed.', detail: await result.text() }, result.status)
     const list = await result.json() as GmailMessageListResponse
     const messages = await Promise.all((list.messages ?? []).map(async (item) => {
-      const response = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${item.id}?format=full`, { headers: { Authorization: `Bearer ${googleAccessToken}` } })
+      const response = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${item.id}?format=full`, { headers: { Authorization: `Bearer ${providerAccessToken}` } })
       if (!response.ok) throw new Error(`Gmail message fetch failed (${response.status}).`)
       return await response.json() as GmailMessage
     }))

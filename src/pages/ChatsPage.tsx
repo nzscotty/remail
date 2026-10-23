@@ -102,7 +102,7 @@ export function ChatsPage() {
               <div className="tip">
                 <Sparkles size={15} />
                 <span>
-                  Tip: add <strong>[remail]</strong> to any Gmail subject to bring
+                  Tip: add <strong>[remail]</strong> to any email subject to bring
                   it here.
                 </span>
               </div>

@@ -73,6 +73,9 @@ export function normalizeGmailMessages(messages: SourceMessage[]): Conversation[
       const labels = message.labelIds ?? []
       return {
         id: requiredMessageId(message.id, 'id'),
+        provider: 'google',
+        providerMessageId: requiredMessageId(message.id, 'id'),
+        providerConversationId: requiredMessageId(message.threadId, 'threadId'),
         conversationId,
         gmailThreadId: requiredMessageId(message.threadId, 'threadId'),
         sender: parseAddress(from),

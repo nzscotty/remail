@@ -9,8 +9,8 @@ serve(async request => {
   if (request.method !== 'POST') return json({ ok: true, message: 'Remail Gmail send function is running. Call it with POST from the signed-in app.' })
   try {
     const payload = await request.json().catch(() => ({}))
-    const { googleAccessToken, recipient, subject, body, threadId, inReplyTo, references } = payload
-    if (!googleAccessToken || !recipient || !body) return json({ error: 'recipient, body, and Google access token are required.' }, 400)
+    const { providerAccessToken, recipient, subject, body, threadId, inReplyTo, references } = payload
+    if (!providerAccessToken || !recipient || !body) return json({ error: 'recipient, body, and mail provider access token are required.' }, 400)
     const safeHeader = (value: string) => value.replace(/[\r\n]+/g, ' ').trim()
     const headers = [
       `To: ${safeHeader(recipient)}`,
@@ -21,7 +21,7 @@ serve(async request => {
       body,
     ]
     const raw = headers.join('\r\n')
-    const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', { method: 'POST', headers: { Authorization: `Bearer ${googleAccessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ raw: encode(raw), ...(threadId ? { threadId } : {}) }) })
+    const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', { method: 'POST', headers: { Authorization: `Bearer ${providerAccessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ raw: encode(raw), ...(threadId ? { threadId } : {}) }) })
     const data = await response.json()
     return json(data, response.status)
   } catch (error) { return json({ error: error instanceof Error ? error.message : 'Unexpected Gmail error.' }, 500) }

@@ -7,7 +7,7 @@
     "start": "vite",
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "deploy:func": "npx supabase functions deploy gmail-conversations --project-ref dczjflhjxqxyvtukuxji && npx supabase functions deploy gmail-send --project-ref dczjflhjxqxyvtukuxji && npx supabase functions deploy gmail-refresh --project-ref dczjflhjxqxyvtukuxji && npx supabase functions deploy gmail-mark-read --project-ref dczjflhjxqxyvtukuxji",
+    "deploy:func": "npx supabase functions deploy gmail-conversations --project-ref dczjflhjxqxyvtukuxji && npx supabase functions deploy gmail-send --project-ref dczjflhjxqxyvtukuxji && npx supabase functions deploy gmail-refresh --project-ref dczjflhjxqxyvtukuxji && npx supabase functions deploy gmail-mark-read --project-ref dczjflhjxqxyvtukuxji && npx supabase functions deploy microsoft-conversations --project-ref dczjflhjxqxyvtukuxji && npx supabase functions deploy microsoft-send --project-ref dczjflhjxqxyvtukuxji && npx supabase functions deploy microsoft-refresh --project-ref dczjflhjxqxyvtukuxji && npx supabase functions deploy microsoft-mark-read --project-ref dczjflhjxqxyvtukuxji",
     "preview": "vite preview",
     "lint": "tsc --noEmit"
   },

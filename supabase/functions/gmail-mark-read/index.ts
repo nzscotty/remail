@@ -9,8 +9,8 @@ serve(async request => {
 
   try {
     const payload = await request.json().catch(() => ({}))
-    const { googleAccessToken, threadIds } = payload
-    if (!googleAccessToken) return json({ error: 'Google access token is missing.' }, 401)
+    const { providerAccessToken, threadIds } = payload
+    if (!providerAccessToken) return json({ error: 'Mail provider access token is missing.' }, 401)
     if (!Array.isArray(threadIds) || !threadIds.every(id => typeof id === 'string' && id.length > 0)) {
       return json({ error: 'A list of Gmail thread IDs is required.' }, 400)
     }
@@ -20,7 +20,7 @@ serve(async request => {
       const response = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/threads/${encodeURIComponent(threadId)}/modify`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${googleAccessToken}`,
+          Authorization: `Bearer ${providerAccessToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ removeLabelIds: ['UNREAD'] }),
