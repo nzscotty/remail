@@ -45,10 +45,15 @@ export function ChatsPage() {
               aria-label="Search conversations"
             />
           </div>
+          {query.isError && query.data && (
+            <p className="offline-notice" role="status">
+              Couldn’t refresh. Showing saved conversations.
+            </p>
+          )}
           <div className="conversation-list">
             {query.isLoading ? (
               <LoadingList />
-            ) : query.isError ? (
+            ) : query.isError && !query.data ? (
               <ErrorState onRetry={() => query.refetch()} />
             ) : (
               filteredConversations.map((conversation) => (

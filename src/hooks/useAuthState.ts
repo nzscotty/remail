@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { getAuthState, refreshGoogleAccessToken, subscribeToAuthState } from "@/services/api";
+import { getAuthState, getConversationCacheOwner, refreshGoogleAccessToken, subscribeToAuthState } from "@/services/api";
+import { readConversationCache } from "@/services/conversationCache";
 
 export type AuthStatus = "loading" | "ready" | "login";
 
@@ -10,7 +11,14 @@ export function useAuthState(): AuthStatus {
     let active = true;
     const refresh = async () => {
       const auth = await getAuthState();
-      if (active) setStatus(auth.signedIn && auth.gmailConnected ? "ready" : "login");
+      let hasSavedConversations = false;
+      if (auth.signedIn && !auth.gmailConnected) {
+        const owner = await getConversationCacheOwner();
+        hasSavedConversations = Boolean(owner && readConversationCache(owner));
+      }
+      if (active) {
+        setStatus(auth.signedIn && (auth.gmailConnected || hasSavedConversations) ? "ready" : "login");
+      }
     };
 
     void refresh();

@@ -66,9 +66,7 @@ export async function refreshGoogleAccessToken(force = false): Promise<string | 
     return data.access_token as string
   })().finally(() => { refreshPromise = null })
 
-  const refreshed = await refreshPromise
-  if (!refreshed) await endSession()
-  return refreshed
+  return await refreshPromise
 }
 
 export async function getGoogleAccessToken() {
@@ -115,6 +113,13 @@ export async function getAuthState() {
   const { data } = await supabase.auth.getSession()
   const googleAccessToken = await getGoogleAccessToken()
   return { signedIn: Boolean(data.session), gmailConnected: Boolean(googleAccessToken) }
+}
+
+export async function getConversationCacheOwner(): Promise<string | null> {
+  if (!supabase) return 'demo'
+  const { data, error } = await supabase.auth.getSession()
+  if (error) throw error
+  return data.session?.user.id ?? null
 }
 
 export function subscribeToAuthState(callback: () => void) {
