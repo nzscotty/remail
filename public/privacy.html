@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f8fc" />
+    <meta name="description" content="Remail privacy policy." />
+    <title>Privacy Policy · Remail</title>
+    <style>
+      :root { color-scheme: light; font: 16px/1.65 system-ui, sans-serif; color: #202033; background: #f7f8fc; }
+      body { max-width: 760px; margin: 0 auto; padding: 40px 22px 72px; }
+      h1, h2 { line-height: 1.2; }
+      h1 { font-size: 2rem; }
+      h2 { margin-top: 2rem; font-size: 1.2rem; }
+      a { color: #5148b8; }
+      .back { display: inline-block; margin-bottom: 24px; }
+      .updated { color: #656579; }
+    </style>
+  </head>
+  <body>
+    <a class="back" href="/">← Back to Remail</a>
+    <main>
+      <h1>Remail Privacy Policy</h1>
+      <p class="updated">Effective 28 October 2026</p>
+      <p>Remail turns email conversations you tag with <code>[remail]</code> into a focused chat view. This policy explains what information Remail processes and where it is kept.</p>
+
+      <h2>Information Remail processes</h2>
+      <p>When you connect Google or Microsoft, Remail receives basic account information such as your email address, display name, and profile image. If you use Remail's mail features, it requests permission to find tagged conversations, read their messages, mark them as read, and send replies or new messages with the <code>[remail]</code> subject tag. Message content, sender and recipient addresses, subjects, and timestamps are processed to provide those features.</p>
+
+      <h2>How information is used and stored</h2>
+      <p>Remail uses account and mail information only to sign you in and provide the app's conversation, read-status, and send features. Mail is fetched through Supabase Edge Functions and forwarded to or from the Google Gmail API or Microsoft Graph. Remail does not store email messages in a Remail database.</p>
+      <p>Remail does not sell email data, use it for advertising, or use it to train generalized artificial intelligence models. Google data is used only to provide the mail features you request.</p>
+      <p>Conversation data is cached in your browser's local storage so you can read it offline. Supabase Auth session data and mail-provider tokens are kept in the current browser tab's session storage. The app clears its conversation cache when you sign out. Anyone with access to your browser profile may be able to access locally cached messages while they remain stored.</p>
+
+      <h2>Service providers</h2>
+      <p>Remail relies on <a href="https://supabase.com/privacy">Supabase</a> for authentication and Edge Functions, and on <a href="https://policies.google.com/privacy">Google</a> or <a href="https://privacy.microsoft.com/privacystatement">Microsoft</a> for the account and mail services you choose. The app loads fonts from Google Fonts, which receives standard browser connection information when the fonts are requested. Remail currently does not use advertising or analytics services.</p>
+
+      <h2>Retention and your choices</h2>
+      <p>Your browser keeps the offline conversation cache until you sign out or clear Remail's site data. Session tokens are removed when you sign out and normally end when the browser tab's session ends. You can revoke Remail's access from your Google or Microsoft account settings. To ask a privacy question or request deletion of your Remail account data, contact <a href="mailto:cameron.mark.scott@gmail.com">cameron.mark.scott@gmail.com</a>.</p>
+
+      <h2>Contact</h2>
+      <p>For privacy questions, email <a href="mailto:cameron.mark.scott@gmail.com">cameron.mark.scott@gmail.com</a>.</p>
+    </main>
+  </body>
+</html>

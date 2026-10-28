@@ -98,6 +98,17 @@
   color: #7773da;
 }
 
+.legal-links {
+  margin-top: 16px;
+  font-size: 11px;
+}
+
+.legal-links a {
+  color: #7773be;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .demo-note {
   display: inline-flex;
   align-items: center;

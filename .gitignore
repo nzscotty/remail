@@ -33,3 +33,7 @@ supabase/.temp/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# OAuth client credentials (keep local only)
+client_secret*.json
+.wrangler/

@@ -8,7 +8,9 @@ type AuthProvider = 'google' | 'azure'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-export const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null
+export const supabase = supabaseUrl && supabaseKey
+  ? createClient(supabaseUrl, supabaseKey, { auth: { storage: window.sessionStorage } })
+  : null
 
 export const isDemoMode = !supabase
 
@@ -165,7 +167,7 @@ export async function signInWithProvider(provider: MailProvider) {
   if (!supabase) return
   const authProvider: AuthProvider = provider === 'google' ? 'google' : 'azure'
   const scopes = provider === 'google'
-    ? 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.modify'
+    ? 'https://www.googleapis.com/auth/gmail.modify'
     : 'email offline_access User.Read Mail.ReadWrite Mail.Send'
   const { error } = await supabase.auth.signInWithOAuth({
     provider: authProvider,

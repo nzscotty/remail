@@ -52,6 +52,9 @@ export function LoginPage() {
           Only conversations with <strong>[remail]</strong> in the subject
           appear.
         </p>
+        <footer className="legal-links">
+          <a href="/privacy.html">Privacy</a>
+        </footer>
         {isDemoMode && (
           <div className="demo-note">
             <Sparkles size={15} /> Demo mode is active until Supabase is
