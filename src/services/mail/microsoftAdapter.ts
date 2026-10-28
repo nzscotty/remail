@@ -1,11 +1,16 @@
 import type { Conversation } from '@/types'
 import { normalizeOutlookMessages, type OutlookMessage } from '../outlookAdapter'
-import type { MailAdapter } from './types'
+import type { MailAdapter, MailContact } from './types'
 
 export const microsoftMailAdapter: MailAdapter = {
   async fetchConversations(invoke, accountEmail) {
     const data = await invoke<{ messages: OutlookMessage[] }>('conversations', {})
     return normalizeOutlookMessages(data.messages ?? [], accountEmail)
+  },
+
+  async fetchContacts(invoke, accountEmail) {
+    const data = await invoke<{ contacts: MailContact[] }>('contacts', { accountEmail })
+    return data.contacts ?? []
   },
 
   async sendMessage(invoke, { body, recipient, subject, reply }) {

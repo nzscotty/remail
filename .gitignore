@@ -36,3 +36,4 @@ Desktop.ini
 
 # OAuth client credentials (keep local only)
 client_secret*.json
+.vercel

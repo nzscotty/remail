@@ -1,13 +1,18 @@
 import type { Conversation } from '@/types'
 import { GmailConversationsResponseSchema, GmailMessageSchema } from '../gmailSchemas'
 import { normalizeGmailMessages } from '../gmailAdapter'
-import type { MailAdapter } from './types'
+import type { MailAdapter, MailContact } from './types'
 
 export const googleMailAdapter: MailAdapter = {
   async fetchConversations(invoke) {
     const data = await invoke<unknown>('conversations', {})
     const payload = GmailConversationsResponseSchema.parse(data)
     return normalizeGmailMessages(payload.messages ?? payload.conversations ?? [])
+  },
+
+  async fetchContacts(invoke, accountEmail) {
+    const data = await invoke<{ contacts: MailContact[] }>('contacts', { accountEmail })
+    return data.contacts ?? []
   },
 
   async sendMessage(invoke, { body, recipient, subject, reply }) {

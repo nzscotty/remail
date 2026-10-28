@@ -3,7 +3,7 @@ import type { Conversation, User } from '@/types'
 import { mockConversations, me } from './mockData'
 import { mailAdapters } from './mail/adapters'
 import type { MailProvider, SendReply } from './mail/types'
-export type { MailProvider } from './mail/types'
+export type { MailContact, MailProvider } from './mail/types'
 type AuthProvider = 'google' | 'azure'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -113,12 +113,43 @@ function isUnauthorized(error: { context?: unknown }): boolean {
   return context instanceof Response && context.status === 401
 }
 
-async function invokeMailFunction<T>(provider: MailProvider, operation: 'conversations' | 'send' | 'mark-read', payload: Record<string, unknown>): Promise<T> {
+async function invokeMailFunction<T>(provider: MailProvider, operation: 'conversations' | 'contacts' | 'send' | 'mark-read', payload: Record<string, unknown>): Promise<T> {
   if (!supabase) throw new Error('Mail providers are unavailable in demo mode.')
   const functionProvider = provider === 'google' ? 'gmail' : 'microsoft'
   const name = `${functionProvider}-${operation}`
   const accessToken = await getMailAccessToken(provider)
   if (!accessToken) throw new Error(`Your ${provider === 'google' ? 'Google' : 'Microsoft'} mail access is missing. Please sign in again.`)
+
+  if (operation === 'contacts') {
+    const invokeContacts = async (token: string): Promise<T> => {
+      const response = await fetch(`/api/${name}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, providerAccessToken: token }),
+      })
+      if (!response.ok) {
+        if (response.status === 401) throw { context: response }
+        const result = await response.json().catch(() => ({}))
+        throw new Error(typeof result?.error === 'string' ? result.error : `Contact lookup failed (${response.status}).`)
+      }
+      return await response.json() as T
+    }
+
+    try {
+      return await invokeContacts(accessToken)
+    } catch (error) {
+      if (!isUnauthorized(error as { context?: unknown })) throw error
+      const refreshed = await refreshMailAccessToken(true)
+      if (!refreshed) throw error
+      try {
+        return await invokeContacts(refreshed)
+      } catch (retryError) {
+        if (isUnauthorized(retryError as { context?: unknown })) await endSession()
+        throw retryError
+      }
+    }
+  }
+
   const first = await supabase.functions.invoke<T>(name, { body: { ...payload, providerAccessToken: accessToken } })
   if (!first.error) {
     if (first.data === null) throw new Error(`Mail function "${name}" returned no data.`)
@@ -138,7 +169,7 @@ async function invokeMailFunction<T>(provider: MailProvider, operation: 'convers
 }
 
 function invokeForProvider(provider: MailProvider) {
-  return <T>(operation: 'conversations' | 'send' | 'mark-read', payload: Record<string, unknown>) =>
+  return <T>(operation: 'conversations' | 'contacts' | 'send' | 'mark-read', payload: Record<string, unknown>) =>
     invokeMailFunction<T>(provider, operation, payload)
 }
 
@@ -184,6 +215,18 @@ export async function fetchConversations(): Promise<Conversation[]> {
   if (!provider) throw new Error('No supported mail provider is connected.')
   const { data: sessionData } = await supabase.auth.getSession()
   return mailAdapters[provider].fetchConversations(invokeForProvider(provider), sessionData.session?.user.email ?? '')
+}
+
+export async function fetchMailContacts() {
+  if (!supabase) {
+    const contacts = mockConversations.map(conversation => conversation.participant)
+    return [...new Map(contacts.map(contact => [contact.email.toLowerCase(), { email: contact.email, name: contact.name }])).values()]
+  }
+  const provider = await getSessionProvider()
+  if (!provider) throw new Error('No supported mail provider is connected.')
+  const { data, error } = await supabase.auth.getSession()
+  if (error) throw error
+  return mailAdapters[provider].fetchContacts(invokeForProvider(provider), data.session?.user.email ?? '')
 }
 
 export async function sendMessage(body: string, recipient: string, subject: string, reply?: SendReply) {
