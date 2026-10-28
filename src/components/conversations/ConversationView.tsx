@@ -62,20 +62,27 @@ export function ConversationView() {
       if (!session) throw new Error("The sign-in session has not loaded.");
       const latestMessage =
         conversation!.messages[conversation!.messages.length - 1];
-      const replyMessage = latestMessage?.provider === 'microsoft'
+      const replyMessage = session.provider === 'microsoft'
         ? [...conversation!.messages].reverse().find(message => !message.isMine) ?? latestMessage
         : latestMessage;
+      const gmailThreadId = latestMessage?.gmailThreadId ?? latestMessage?.providerConversationId;
+      const gmailMessageId = latestMessage?.emailMessageId;
+      if (!isDemoMode && session.provider === 'google' && (!gmailThreadId || !gmailMessageId)) {
+        throw new Error(
+          "Cannot reply because the latest Gmail message is missing its thread metadata.",
+        );
+      }
       if (replyMessage && !replyMessage.emailMessageId && !replyMessage.providerMessageId && !isDemoMode) {
         throw new Error(
           "Cannot reply because the latest email is missing its reply identifier.",
         );
       }
-      const reply = replyMessage?.provider === 'microsoft' && replyMessage.providerMessageId
+      const reply = session.provider === 'microsoft' && replyMessage?.providerMessageId
         ? { providerMessageId: replyMessage.providerMessageId, providerConversationId: replyMessage.providerConversationId }
-        : latestMessage?.emailMessageId
+        : session.provider === 'google' && gmailThreadId && gmailMessageId
           ? {
-            threadId: latestMessage.gmailThreadId ?? conversation!.id,
-            messageId: latestMessage.emailMessageId,
+            threadId: gmailThreadId,
+            messageId: gmailMessageId,
             references: latestMessage.references,
           }
         : undefined;

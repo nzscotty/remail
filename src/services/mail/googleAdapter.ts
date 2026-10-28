@@ -17,7 +17,7 @@ export const googleMailAdapter: MailAdapter = {
 
   async sendMessage(invoke, { body, recipient, subject, reply }) {
     const data = await invoke<unknown>('send', {
-      ...(reply ? { threadId: reply.threadId, inReplyTo: reply.messageId, references: reply.references } : {}),
+      ...(reply ? { threadId: reply.threadId, messageId: reply.messageId, references: reply.references } : {}),
       body,
       recipient,
       subject,

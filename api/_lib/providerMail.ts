@@ -251,7 +251,14 @@ export async function handleProviderMail(provider: Provider, accessToken: string
     const { recipient, subject, body, threadId, messageId, references, providerMessageId } = payload
     if (typeof recipient !== 'string' || !recipient || typeof body !== 'string' || !body) throw new Error('recipient and body are required.')
     if (provider === 'google') {
-      const headers = [`To: ${safeHeader(recipient)}`, `Subject: ${safeHeader(typeof subject === 'string' && /\[remail\]/i.test(subject) ? subject : `[remail] ${typeof subject === 'string' ? subject : 'New conversation'}`)}`, ...(threadId && messageId ? [`In-Reply-To: ${safeHeader(String(messageId))}`, `References: ${safeHeader([references, messageId].filter(Boolean).join(' '))}`] : []), 'Content-Type: text/plain; charset=utf-8', '', body]
+      const hasReplyMetadata = threadId !== undefined || messageId !== undefined
+      const gmailThreadId = typeof threadId === 'string' ? threadId : ''
+      const gmailMessageId = typeof messageId === 'string' ? messageId : ''
+      if (hasReplyMetadata && (!gmailThreadId || !gmailMessageId)) throw new Error('A Gmail reply requires both a thread ID and a message ID.')
+      const replyHeaders = hasReplyMetadata
+        ? [`In-Reply-To: ${safeHeader(gmailMessageId)}`, `References: ${safeHeader([typeof references === 'string' ? references : '', gmailMessageId].filter(Boolean).join(' '))}`]
+        : []
+      const headers = [`To: ${safeHeader(recipient)}`, `Subject: ${safeHeader(typeof subject === 'string' && /\[remail\]/i.test(subject) ? subject : `[remail] ${typeof subject === 'string' ? subject : 'New conversation'}`)}`, ...replyHeaders, 'Content-Type: text/plain; charset=utf-8', '', body]
       const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', { method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ raw: encodeGmail(headers.join('\r\n')), ...(threadId ? { threadId } : {}) }) })
       const data = await response.json()
       if (!response.ok) throw new Error('Gmail could not send the message.')
