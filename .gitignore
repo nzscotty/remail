@@ -19,9 +19,6 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Supabase local state
-supabase/.temp/
-
 # Local editor settings
 .vscode/*
 !.vscode/extensions.json
@@ -37,3 +34,4 @@ Desktop.ini
 # OAuth client credentials (keep local only)
 client_secret*.json
 .vercel
+supabase/.temp/

@@ -5,7 +5,9 @@ import { isDemoMode, signInWithProvider, type MailProvider } from "@/services/ap
 
 export function LoginPage() {
   const [loadingProvider, setLoadingProvider] = useState<MailProvider | null>(null);
-  const [loginError, setLoginError] = useState("");
+  const [loginError, setLoginError] = useState(() => new URLSearchParams(window.location.search).has("error")
+    ? "Sign-in could not be completed. Please try again."
+    : "");
   async function handleLogin(provider: MailProvider) {
     setLoadingProvider(provider);
     setLoginError("");
@@ -57,8 +59,7 @@ export function LoginPage() {
         </footer>
         {isDemoMode && (
           <div className="demo-note">
-            <Sparkles size={15} /> Demo mode is active until Supabase is
-            connected.
+            <Sparkles size={15} /> Demo mode is active for this local preview.
           </div>
         )}
       </div>
