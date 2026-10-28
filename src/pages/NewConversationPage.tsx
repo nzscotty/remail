@@ -1,10 +1,12 @@
 import "./NewConversationPage.scss";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Send } from "lucide-react";
-import { fetchMailContacts, sendMessage } from "@/services/api";
+import { sendMessage } from "@/services/api";
 import { conversationsQueryKey, useConversations } from "@/hooks/useConversations";
+import { useAuthSession } from "@/hooks/useAuthSession";
+import { useMailContacts } from "@/hooks/useMailContacts";
 import { AppShell } from "@/layouts/AppShell";
 import { emailRegex, emailPattern } from "@/utils/email";
 
@@ -12,7 +14,8 @@ export function NewConversationPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const conversationsQuery = useConversations();
-  const contactsQuery = useQuery({ queryKey: ["mail-contacts"], queryFn: fetchMailContacts, staleTime: 5 * 60 * 1000 });
+  const contactsQuery = useMailContacts();
+  const { data: session } = useAuthSession();
   const [recipient, setRecipient] = useState("");
   const [recipientBlurred, setRecipientBlurred] = useState(false);
   const [recipientFocused, setRecipientFocused] = useState(false);
@@ -25,11 +28,14 @@ export function NewConversationPage() {
     `${contact.name} ${contact.email}`.toLowerCase().includes(recipient.trim().toLowerCase()),
   ).slice(0, 8);
   const mutation = useMutation({
-    mutationFn: () => sendMessage(
-      body.trim(),
-      recipient.trim(),
-      `[remail] ${subject.trim() || "New conversation"}`,
-    ),
+    mutationFn: () => {
+      if (!session) throw new Error("The sign-in session has not loaded.");
+      return sendMessage(session, {
+        body: body.trim(),
+        recipient: recipient.trim(),
+        subject: `[remail] ${subject.trim() || "New conversation"}`,
+      });
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: conversationsQueryKey });
       const existing = conversationsQuery.data?.find(

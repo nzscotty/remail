@@ -1,24 +1,26 @@
 import "./LoginPage.scss";
-import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { Mail, Sparkles } from "lucide-react";
 import { isDemoMode, signInWithProvider, type MailProvider } from "@/services/api";
 
 export function LoginPage() {
-  const [loadingProvider, setLoadingProvider] = useState<MailProvider | null>(null);
-  const [loginError, setLoginError] = useState(() => new URLSearchParams(window.location.search).has("error")
-    ? "Sign-in could not be completed. Please try again."
-    : "");
-  async function handleLogin(provider: MailProvider) {
-    setLoadingProvider(provider);
-    setLoginError("");
-    try {
-      await signInWithProvider(provider);
-      if (isDemoMode) window.location.href = "/chats";
-    } catch (error) {
-      setLoginError(error instanceof Error ? error.message : "Could not start sign in.");
-      setLoadingProvider(null);
-    }
-  }
+  const navigate = useNavigate();
+  const signInMutation = useMutation({
+    mutationFn: signInWithProvider,
+    onSuccess: () => {
+      if (isDemoMode) navigate("/chats");
+    },
+  });
+  const hasSignInError = new URLSearchParams(window.location.search).has("error");
+  const loginError = signInMutation.isError
+    ? signInMutation.error.message
+    : hasSignInError && signInMutation.isIdle
+      ? "Sign-in could not be completed. Please try again."
+      : "";
+  const isConnecting = (provider: MailProvider) =>
+    signInMutation.isPending && signInMutation.variables === provider;
+
   return (
     <main className="login-page">
       <div className="login-card">
@@ -33,20 +35,20 @@ export function LoginPage() {
         </p>
         <button
           className="provider-button"
-          onClick={() => void handleLogin('google')}
-          disabled={loadingProvider !== null}
+          onClick={() => signInMutation.mutate("google")}
+          disabled={signInMutation.isPending}
         >
           <span className="google-g">G</span>
-          {loadingProvider === 'google' ? "Connecting…" : "Continue with Google"}
+          {isConnecting("google") ? "Connecting…" : "Continue with Google"}
           <span />
         </button>
         <button
           className="provider-button"
-          onClick={() => void handleLogin('microsoft')}
-          disabled={loadingProvider !== null}
+          onClick={() => signInMutation.mutate("microsoft")}
+          disabled={signInMutation.isPending}
         >
           <span className="microsoft-mark" aria-hidden="true"><i /><i /><i /><i /></span>
-          {loadingProvider === 'microsoft' ? "Connecting…" : "Continue with Microsoft"}
+          {isConnecting("microsoft") ? "Connecting…" : "Continue with Microsoft"}
           <span />
         </button>
         {loginError && <p className="login-error" role="alert">{loginError}</p>}

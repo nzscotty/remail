@@ -1,17 +1,24 @@
 import "./ConversationView.scss";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useMutationState, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import type { Conversation, RemailMessage } from "@/types";
-import { currentUser, isDemoMode, markConversationAsRead, sendMessage } from "@/services/api";
+import { isDemoMode, sendMessage } from "@/services/api";
 import { conversationsQueryKey, useConversations } from "@/hooks/useConversations";
+import { useAuthSession } from "@/hooks/useAuthSession";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useMarkConversationAsRead } from "@/hooks/useMarkConversationAsRead";
 import { cleanEmailBody } from "@/utils/cleanEmail";
 import { formatDate, formatTime, dayKey } from "@/utils/date";
 import { ConversationHeader } from "./ConversationHeader";
 import { MessageComposer } from "./MessageComposer";
 
-export type PendingMessage = RemailMessage & { pending: boolean; providerMessageId?: string };
+type PendingMessage = RemailMessage & { pending: boolean; providerMessageId?: string };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
 
 export function ConversationView() {
   const { conversationId } = useParams();
@@ -19,28 +26,40 @@ export function ConversationView() {
   const navigate = useNavigate();
   const [draft, setDraft] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([]);
   const messagesRef = useRef<HTMLElement | null>(null);
   const bubbleAnimation = useRef<{ element: HTMLButtonElement; startHeight: number; expanding: boolean } | null>(null);
+  const markedReadIds = useRef(new Set<string>());
   const { data: conversations = [], isLoading } = useConversations();
+  const { data: session } = useAuthSession();
+  const { data: user } = useCurrentUser();
   const conversation = conversations.find((item) => item.id === conversationId);
+  const markReadMutation = useMarkConversationAsRead();
+  const messageMutationKey = ["send-message", conversationId ?? ""] as const;
+  const sentMessages = useMutationState({
+    filters: { mutationKey: messageMutationKey, exact: true },
+    select: (mutation) => {
+      const variables = mutation.state.variables;
+      const result = mutation.state.data;
+      return {
+        pendingId: isRecord(variables) && typeof variables.pendingId === "string" ? variables.pendingId : undefined,
+        body: isRecord(variables) && typeof variables.body === "string" ? variables.body : undefined,
+        sentAt: isRecord(variables) && typeof variables.sentAt === "string" ? variables.sentAt : undefined,
+        providerMessageId: isRecord(result) && typeof result.id === "string" ? result.id : undefined,
+        status: mutation.state.status,
+      };
+    },
+  });
+
   useEffect(() => {
-    if (!conversation || conversation.unreadCount === 0) return;
-    queryClient.setQueryData<Conversation[]>(conversationsQueryKey, (current) =>
-      current?.map((item) => item.id === conversation.id
-        ? {
-            ...item,
-            unreadCount: 0,
-            messages: item.messages.map((message) => ({ ...message, isRead: true })),
-          }
-        : item),
-    );
-    void markConversationAsRead(conversation).catch(() => {
-      void queryClient.invalidateQueries({ queryKey: conversationsQueryKey });
-    });
-  }, [conversation, queryClient]);
+    if (!conversation || conversation.unreadCount === 0 || markedReadIds.current.has(conversation.id)) return;
+    markedReadIds.current.add(conversation.id);
+    markReadMutation.mutate(conversation);
+  }, [conversation, markReadMutation.mutate]);
+
   const mutation = useMutation({
-    mutationFn: ({ body }: { body: string; pendingId: string }) => {
+    mutationKey: messageMutationKey,
+    mutationFn: ({ body }: { body: string; pendingId: string; sentAt: string }) => {
+      if (!session) throw new Error("The sign-in session has not loaded.");
       const latestMessage =
         conversation!.messages[conversation!.messages.length - 1];
       const replyMessage = latestMessage?.provider === 'microsoft'
@@ -60,40 +79,23 @@ export function ConversationView() {
             references: latestMessage.references,
           }
         : undefined;
-      return sendMessage(
+      return sendMessage(session, {
         body,
-        conversation!.participant.email,
-        latestMessage?.subject ?? `[remail] ${conversation!.title}`,
+        recipient: conversation!.participant.email,
+        subject: latestMessage?.subject ?? `[remail] ${conversation!.title}`,
         reply,
-      );
+      });
     },
-    onSuccess: (data, variables) => {
-      const providerMessageId = data.id ?? undefined;
-      if (!providerMessageId) {
-        setPendingMessages((messages) =>
-          messages.filter((message) => message.id !== variables.pendingId),
-        );
-        void queryClient.invalidateQueries({ queryKey: conversationsQueryKey });
-        return;
-      }
-      setPendingMessages((messages) =>
-        messages.map((message) =>
-          message.id === variables.pendingId
-            ? { ...message, pending: false, providerMessageId }
-            : message,
-        ),
-      );
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: conversationsQueryKey });
     },
     onError: (_error, variables) => {
-      setPendingMessages((messages) =>
-        messages.filter((message) => message.id !== variables.pendingId),
-      );
       setDraft(variables.body);
     },
   });
-  const conversationPending = pendingMessages.filter(
-    (message) => message.conversationId === conversation?.id,
+  const conversationPending = sentMessages.filter(
+    (message) => message.pendingId && message.status !== "error"
+      && (message.status === "pending" || message.providerMessageId),
   );
   const messages = conversation
     ? [
@@ -101,8 +103,8 @@ export function ConversationView() {
           const optimistic = conversationPending.find(
             (pending) => pending.providerMessageId === message.id,
           );
-          return optimistic
-            ? { ...message, id: optimistic.id, pending: false }
+          return optimistic?.pendingId
+            ? { ...message, id: optimistic.pendingId, pending: false }
             : message;
         }),
         ...conversationPending.filter(
@@ -111,24 +113,26 @@ export function ConversationView() {
             !conversation.messages.some(
               (message) => message.id === pending.providerMessageId,
             ),
-        ),
+        ).flatMap((pending): PendingMessage[] => {
+          if (!pending.pendingId || !user) return [];
+          const body = pending.body ?? "";
+          return [{
+            id: pending.pendingId,
+            conversationId: conversation.id,
+            sender: user,
+            recipient: conversation.participant,
+            subject: `[remail] ${conversation.title}`,
+            body,
+            cleanedBody: cleanEmailBody(body),
+            sentAt: pending.sentAt ?? new Date().toISOString(),
+            isRead: true,
+            isMine: true,
+            pending: pending.status === "pending",
+            ...(pending.providerMessageId ? { providerMessageId: pending.providerMessageId } : {}),
+          }];
+        }),
       ]
     : [];
-
-  useEffect(() => {
-    if (!conversation) return;
-    const loadedIds = new Set(
-      conversation.messages.map((message) => message.id),
-    );
-    setPendingMessages((current) =>
-      current.filter(
-        (message) =>
-          message.conversationId !== conversation.id ||
-          !message.providerMessageId ||
-          !loadedIds.has(message.providerMessageId),
-      ),
-    );
-  }, [conversation]);
 
   useEffect(() => {
     const element = messagesRef.current;
@@ -175,26 +179,12 @@ export function ConversationView() {
   if (isLoading)
     return <div className="chat-loading">Loading conversation…</div>;
   if (!conversation) return <Navigate to="/chats" replace />;
+  if (!user) return <Navigate to="/login" replace />;
   const send = (body: string) => {
     const pendingId = `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const sentAt = new Date().toISOString();
     setDraft("");
-    setPendingMessages((messages) => [
-      ...messages,
-      {
-        id: pendingId,
-        conversationId: conversation.id,
-        sender: currentUser(),
-        recipient: conversation.participant,
-        subject: `[remail] ${conversation.title}`,
-        body,
-        cleanedBody: cleanEmailBody(body),
-        sentAt: new Date().toISOString(),
-        isRead: true,
-        isMine: true,
-        pending: true,
-      },
-    ]);
-    mutation.mutate({ body, pendingId });
+    mutation.mutate({ body, pendingId, sentAt });
   };
   return (
       <div className="chat-layout flex min-h-0 w-full flex-1 flex-col">

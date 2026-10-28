@@ -2,6 +2,8 @@
 
 Remail is a mobile-first PWA that presents `[remail]` email conversations as chat. Google Gmail and Microsoft Outlook accounts are supported. OAuth callbacks, sessions, and mail API requests run through Vercel Functions. Provider tokens are encrypted in secure, HttpOnly cookies.
 
+Vercel automatically discovers the API handlers in `api/`. This app does not use Supabase Edge Functions; `supabase/functions/` has no handlers.
+
 ## Run locally
 
 ```bash
@@ -9,9 +11,10 @@ npm install
 npm run dev
 ```
 
-The Vite development server uses seeded demo conversations. To exercise Vercel Functions locally, set `VITE_DEMO_MODE=false`, configure the local OAuth callback URL, and use `vercel dev`:
+`npm run dev` starts the Vite-only demo with seeded conversations on port 5173. For local OAuth and Vercel Functions, set `VITE_DEMO_MODE=false` and use `npm start`, which loads `.env.local` into the function environment and runs `vercel dev` on port 3000. The local Vercel config omits the production SPA rewrite so it does not intercept Vite module requests:
 
 ```text
+VITE_DEMO_MODE=false
 AUTH_CALLBACK_URL=http://localhost:3000/api/auth/callback
 APP_ORIGIN=http://localhost:3000
 ```

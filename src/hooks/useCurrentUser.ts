@@ -1,8 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
-import { fetchCurrentUser } from "@/services/api";
-
-export const currentUserQueryKey = ["currentUser"] as const;
+import { useAuthSession } from "@/hooks/useAuthSession";
 
 export function useCurrentUser() {
-  return useQuery({ queryKey: currentUserQueryKey, queryFn: fetchCurrentUser });
+  const query = useAuthSession();
+  return { ...query, data: query.data?.user ?? undefined };
 }
