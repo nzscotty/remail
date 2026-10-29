@@ -1,5 +1,5 @@
 import { ApiError, getProviderAccessToken, requireSameOrigin, type ApiRequest, type ApiResponse } from './_lib/auth.js'
-import { handleProviderMail } from './_lib/providerMail.js'
+import { handleProviderProxy } from './_lib/providerProxy.js'
 
 export default async function handler(request: ApiRequest, response: ApiResponse) {
   response.setHeader('Cache-Control', 'no-store')
@@ -11,7 +11,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     const provider = body.provider === 'google' || body.provider === 'microsoft' ? body.provider : undefined
     if (!provider) throw new ApiError('A supported mail provider is required.', 400)
     const { session, accessToken } = await getProviderAccessToken(request, response, provider)
-    const result = await handleProviderMail(session.provider, accessToken, session.user.email, operation, body)
+    const result = await handleProviderProxy(session.provider, accessToken, operation, body)
     return response.status(200).json(result)
   } catch (error) {
     const status = error instanceof ApiError ? error.statusCode : 502

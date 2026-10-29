@@ -64,6 +64,10 @@ Generate a session key with `node -e "console.log(require('crypto').randomBytes(
 
 The Vercel API routes read Gmail or Microsoft Graph using the signed-in user's OAuth token. Refresh and access tokens are encrypted in HttpOnly cookies and are never returned to browser JavaScript. Messages are not stored on a Remail server; conversations are cached in browser local storage for offline reading and cleared when the user signs out.
 
+### Provider API boundary
+
+Functions under `api/` authenticate and proxy allow-listed provider requests. They must pass provider request and response data through without applying Remail-specific transformations. Keep message construction, response validation, filtering, contact derivation, quoted-text cleanup, and mapping to `RemailConversation` or `RemailMessage` in the app under `src/services/`. Use generated `googleapis` types for Gmail wire shapes and `@microsoft/microsoft-graph-types` for Microsoft Graph shapes; keep both distinct from Remail domain types.
+
 ## Production
 
 Vercel builds the Vite app with `npm run build` and serves the `dist` directory. Functions under `api/` handle OAuth and mail operations. The custom domain is `https://www.re-mail.app`; `vercel.json` configures client-side routes and browser security headers.

@@ -34,7 +34,7 @@ async function throwResponseError(response: Response, fallback: string): Promise
   throw new ApiError(typeof result.error === 'string' ? result.error : fallback, response.status)
 }
 
-async function invokeMailFunction<T>(provider: MailProvider, operation: MailOperation, payload: MailApiPayload): Promise<T> {
+async function invokeMailFunction<T>(provider: MailProvider, operation: MailOperation, payload: MailApiPayload): Promise<T | null> {
   if (isDemoMode) throw new Error('Mail operations are unavailable in demo mode.')
   const response = await fetch('/api/mail', {
     method: 'POST',
@@ -42,7 +42,13 @@ async function invokeMailFunction<T>(provider: MailProvider, operation: MailOper
     body: JSON.stringify({ ...payload, provider, operation }),
   })
   if (!response.ok) await throwResponseError(response, `Mail request failed (${response.status}).`)
-  return await response.json() as T
+  const text = await response.text()
+  if (!text) return null
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    throw new ApiError('The mail provider returned an invalid response.', response.status)
+  }
 }
 
 function invokeForProvider(provider: MailProvider) {

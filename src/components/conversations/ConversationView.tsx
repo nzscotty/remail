@@ -236,7 +236,7 @@ export function ConversationView() {
                 }}
               >
                 <span className="message-text">
-                  {(expanded === message.id ? message.body : message.cleanedBody).replace(/\r\n?/g, "\n")}
+                  {(expanded === message.id ? message.body : cleanEmailBody(message.body)).replace(/\r\n?/g, "\n")}
                 </span>
                 <span className="bubble-toggle" aria-hidden="true">
                   {message.isMine ? <ArrowLeft size={15} /> : <ArrowRight size={15} />}

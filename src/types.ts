@@ -19,7 +19,7 @@ export type RemailMessage = {
   isMine: boolean
 }
 
-export type Conversation = {
+export type RemailConversation = {
   id: string
   title: string
   participant: User
@@ -27,3 +27,5 @@ export type Conversation = {
   unreadCount: number
   latestAt: string
 }
+
+export type Conversation = RemailConversation
